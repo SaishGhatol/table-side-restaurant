@@ -1,0 +1,9 @@
+{
+  "name": "table-side-restaurant",
+  "version": "1.0.0",
+  "description": "QR table ordering, kitchen display and live floor map",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "license": "UNLICENSED",
+  "private": true
+}

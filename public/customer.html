@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f2e9">
+<title>Order at your table</title>
+<link rel="stylesheet" href="/common.css">
+<style>
+  body { padding-bottom: 84px; }
+  .top { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  .top .name { font: 600 20px/1.2 var(--serif); } .top .sub { font-size: 12.5px; color: var(--mute); margin-top: 1px; }
+  #banner, main { max-width: 640px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+  #banner { padding-top: 10px; } main { padding-top: 12px; }
+  .note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-left: 3px solid var(--brand); background: color-mix(in srgb, var(--brand) 7%, transparent); border-radius: 0 8px 8px 0; margin-bottom: 8px; font-size: 14px; }
+  .note.ok { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, transparent); }
+  .note .i { margin-top: 2px; }
+
+  nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 20; }
+  nav button { flex: 1; border: 0; background: none; padding: 8px 2px 7px; font-size: 11.5px; color: var(--mute); position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  nav button .i { width: 23px; height: 23px; }
+  nav button.on { color: var(--brand); font-weight: 600; }
+  nav .dot { position: absolute; top: 3px; left: calc(50% + 6px); background: var(--brand); color: #fff; border-radius: 9px; min-width: 17px; height: 17px; font-size: 11px; line-height: 17px; text-align: center; padding: 0 4px; }
+
+  /* menu */
+  .searchrow { display: flex; gap: 8px; }
+  .searchrow .field { position: relative; flex: 1; } .searchrow .field .i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--mute); }
+  .searchrow input { padding-left: 36px; }
+  .fpanel { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 10px; background: var(--surface); }
+  .fpanel .lbl { font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: var(--mute); margin: 0 0 8px; }
+  .fpanel .chips + .lbl { margin-top: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cats { display: flex; gap: 20px; overflow-x: auto; border-bottom: 1px solid var(--line); margin: 12px -16px 0; padding: 0 16px; scrollbar-width: none; }
+  .cats::-webkit-scrollbar { display: none; }
+  .cats button { border: 0; background: none; padding: 10px 0; color: var(--mute); border-bottom: 2px solid transparent; white-space: nowrap; }
+  .cats button.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--brand); }
+  .sec { font: 600 20px var(--serif); margin: 24px 0 2px; display: flex; align-items: baseline; gap: 8px; }
+  .sec span { font: 13px system-ui, sans-serif; color: var(--mute); }
+  .dish { display: flex; gap: 16px; padding: 16px 0 24px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .dish:last-child { border-bottom: 0; }
+  .dish-main { flex: 1; min-width: 0; }
+  .dish-name { font-weight: 600; font-size: 16px; line-height: 1.3; }
+  .dish-price { font-size: 14.5px; margin-top: 3px; }
+  .dish-desc { color: var(--mute); font-size: 13.5px; margin: 7px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dish-meta { font-size: 12.5px; color: var(--mute); margin-top: 7px; display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; }
+  .dish-photo { position: relative; width: 104px; height: 104px; flex: none; }
+  .dish-photo img, .hero img, .ph { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; background: var(--line); }
+  .dish-photo img, .hero img { display: block; }
+  .ph { display: grid; place-items: center; color: var(--line2); }
+  .ph .i { width: 30px; height: 30px; }
+  .add { position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); min-width: 76px; padding: 5px 0; background: var(--surface); color: var(--brand); border: 1px solid var(--line2); border-radius: 6px; font-weight: 700; font-size: 12.5px; letter-spacing: .6px; text-transform: uppercase; }
+  .addq { position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); display: flex; align-items: center; background: var(--brand); color: #fff; border-radius: 6px; overflow: hidden; }
+  .addq button { width: 32px; height: 28px; border: 0; background: none; color: #fff; display: grid; place-items: center; padding: 0; }
+  .addq b { min-width: 24px; text-align: center; font-size: 14px; }
+  .tagline { font-size: 11px; letter-spacing: .8px; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .veg { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1.5px solid; border-radius: 2px; flex: none; }
+  .veg i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .veg.v { color: #2a8a3e; } .veg.nv { color: #b3261e; }
+  .spice { display: inline-flex; gap: 3px; align-items: center; } .spice i { width: 6px; height: 6px; border-radius: 50%; background: var(--line2); } .spice i.on { background: #b3472a; } .spice span { margin-left: 3px; }
+
+  /* item sheet */
+  .hero { margin: -18px -18px 14px; height: 210px; }
+  .hero img, .hero .ph { border-radius: 14px 14px 0 0; }
+  .opt { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--line2); border-radius: 8px; margin-top: 8px; cursor: pointer; background: transparent; width: 100%; text-align: left; }
+  .opt.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 7%, transparent); }
+  .radio { width: 16px; height: 16px; border: 1.5px solid var(--line2); border-radius: 50%; flex: none; } .opt.on .radio { border: 5px solid var(--brand); }
+  .lbl2 { font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: var(--mute); margin: 16px 0 0; }
+  .qty { display: inline-flex; align-items: center; border: 1px solid var(--line2); border-radius: 8px; }
+  .qty button { width: 34px; height: 34px; border: 0; background: none; display: grid; place-items: center; }
+  .qty b { min-width: 26px; text-align: center; }
+
+  /* lists, totals */
+  .h { font: 600 20px var(--serif); margin: 0 0 8px; }
+  .ln { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .ln:last-of-type { border-bottom: 0; }
+  .price { white-space: nowrap; }
+  .tot { display: flex; justify-content: space-between; padding: 4px 0; }
+  .tot.big { font: 600 18px var(--serif); border-top: 1px solid var(--ink); margin-top: 8px; padding-top: 10px; }
+  .block-gap { margin-top: 18px; }
+  .seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--line2); border: 1px solid var(--line2); border-radius: 8px; overflow: hidden; margin-top: 10px; }
+  .seg button { padding: 10px 6px; border: 0; background: var(--surface); } .seg button.on { background: var(--brand); color: #fff; font-weight: 600; }
+  .sel { display: flex; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); } .sel input { width: 18px; height: 18px; padding: 0; accent-color: var(--brand); }
+  .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; } .bar i { display: block; height: 100%; background: var(--brand); }
+  .status { font-size: 13px; font-weight: 600; } .status.warn { color: var(--warn); } .status.info { color: var(--info); } .status.ok { color: var(--ok); }
+  .empty { text-align: center; color: var(--mute); padding: 40px 0; }
+  .big-n { font: 600 44px/1 var(--serif); }
+  .kv { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; } .kv:first-of-type { border-top: 0; }
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line2); border: 1px solid var(--line2); max-width: 270px; margin: 14px auto; }
+  .board button { aspect-ratio: 1; border: 0; background: var(--surface); font: 600 46px var(--serif); } .board button:disabled { cursor: default; }
+  .stars { display: flex; gap: 4px; margin: 6px 0; }
+  .stars button { border: 0; background: none; padding: 2px; color: var(--line2); } .stars button .i { width: 32px; height: 32px; } .stars button.on { color: var(--accent); } .stars button.on .i use { fill: currentColor; }
+  pre.rc { background: var(--surface); border: 1px solid var(--line); padding: 12px; border-radius: 8px; font: 12.5px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; margin: 0; }
+  .gm { display: flex; gap: 14px; align-items: center; padding: 14px 0; border: 0; border-bottom: 1px solid var(--line); background: none; width: 100%; text-align: left; }
+  .gm .i.big { width: 28px; height: 28px; color: var(--brand); }
+  .gm .t { font-weight: 600; } .gm .d { font-size: 13px; color: var(--mute); }
+  .gm .who { font-size: 11px; letter-spacing: .7px; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .c4 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; background: var(--ink); padding: 8px; border-radius: 10px; max-width: 340px; margin: 14px auto; }
+  .c4 button { aspect-ratio: 1; border: 0; border-radius: 50%; background: var(--bg); padding: 0; } .c4 button:disabled { cursor: default; }
+  .c4 button.x { background: var(--accent); } .c4 button.o { background: #3f9f7c; }
+  .rps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .rps button { padding: 16px 6px; border: 1px solid var(--line2); border-radius: 10px; background: var(--surface); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .rps button.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, transparent); } .rps button:disabled { opacity: .6; cursor: default; }
+  .rps .i { width: 34px; height: 34px; }
+  .mem { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+  .mc { aspect-ratio: 1; border: 0; border-radius: 8px; overflow: hidden; background: var(--brand); color: rgba(255, 255, 255, .6); display: grid; place-items: center; padding: 0; }
+  .mc img { width: 100%; height: 100%; object-fit: cover; display: block; } .mc.done { opacity: .4; } .mc .i { width: 24px; height: 24px; }
+  .opt.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); } .opt.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+  .ccode { padding: 10px 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--surface); color: var(--mute); white-space: nowrap; }
+  a.btn { text-decoration: none; }
+  .field-label { font-size: 13px; color: var(--mute); margin: 12px 0 5px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="sp"><div class="name" id="rname">&nbsp;</div><div class="sub" id="sub"></div></div>
+  <button class="btn ghost sm" id="helpbtn"></button>
+</header>
+<div id="banner"></div>
+<main id="view"></main>
+<nav id="nav"></nav>
+<div id="modal"></div>
+<div id="toast"></div>
+<script src="/icons.js"></script>
+<script>
+const TABLE = Number(location.pathname.split('/')[2]);
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const CID = store.get('cid', null) || (() => { const v = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, '').slice(0, 24); store.set('cid', v); return v; })();
+
+let MENU, T = null, games = [];
+let tab = store.get('tab:' + TABLE, 'menu');
+let cart = store.get('cart:' + TABLE, []);
+let myName = store.get('name', '');
+let filter = { cat: null, q: '', diet: null, avoid: [] }, filtersOpen = false;
+let pay = { mode: 'all', people: 2, keys: [], amount: '', tipPct: 10, tipCustom: '', method: 'card', phone: store.get('phone', '') };
+let shownReceipts = new Set(store.get('rc', []));
+let wasJoined = false, visitEnded = false, autoAsked = false, firstLoad = true;
+const ALLERGENS = ['nuts', 'dairy', 'gluten', 'egg', 'soy', 'fish', 'sesame', 'mustard', 'shellfish'];
+const SPICE = ['', 'Mild', 'Medium', 'Hot'];
+
+// Indian-menu convention: green = vegetarian, red = non-vegetarian
+const vegDot = i => { const v = i.diet.includes('vegetarian'); return `<span class="veg ${v ? 'v' : 'nv'}" title="${v ? 'Vegetarian' : 'Non-vegetarian'}"><i></i></span>`; };
+const spiceHtml = n => n ? `<span class="spice" title="${SPICE[n]}">${[1, 2, 3].map(k => `<i class="${k <= n ? 'on' : ''}"></i>`).join('')}<span>${SPICE[n]}</span></span>` : '';
+// Combos borrow the photo of their first dish.
+const imgOf = i => i.img || (i.includes && (MENU.items.find(x => x.id === i.includes[0]) || {}).img) || '';
+const ph = () => `<span class="ph">${icon('fork')}</span>`;
+const photo = i => imgOf(i) ? `<img src="${esc(imgOf(i))}" alt="${esc(i.name)}" loading="lazy" onerror="this.outerHTML='<span class=&quot;ph&quot;>'+icon('fork')+'</span>'">` : ph();
+const money = n => `${MENU.currency}${/^[A-Za-z]+$/.test(MENU.currency) ? ' ' : ''}${(Math.round(n * 100) / 100).toLocaleString(MENU.locale, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
+
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const e = new Error(j.error || 'Something went wrong'); e.reason = j.reason;
+    if (['closed', 'waiting', 'denied'].includes(j.reason)) setTimeout(refresh, 0); // table state changed under us (e.g. it was closed)
+    throw e;
+  }
+  return j;
+}
+function toast(msg) { const t = $('#toast'); t.innerHTML = `<div class="toast">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => t.innerHTML = '', 2800); }
+const closeModal = () => { $('#modal').innerHTML = ''; };
+const saveCart = () => store.set('cart:' + TABLE, cart);
+const cartCount = () => cart.reduce((s, l) => s + l.qty, 0);
+const baseSize = def => def.sizes.find(s => s.add === 0) || def.sizes[0];
+const unitPrice = (def, size) => def.price + (def.sizes ? (def.sizes.find(s => s.name === size) || baseSize(def)).add : 0);
+const cartTotal = () => cart.reduce((s, l) => s + (l.reward ? 0 : unitPrice(MENU.items.find(i => i.id === l.id), l.size) * l.qty), 0);
+const stepper = (dec, inc, n) => `<div class="qty"><button ${dec} aria-label="Less">${icon('minus')}</button><b>${n}</b><button ${inc} aria-label="More">${icon('plus')}</button></div>`;
+
+// Shown instead of any action that needs an approved table. Guests can still read the menu while they wait.
+function gate() {
+  const st = T.joinState;
+  if (st === 'pending') {
+    return `<div class="panel" style="margin-bottom:14px"><div class="row" style="gap:8px">${icon('clock')}<h3>Waiting for your waiter</h3></div>
+      <p class="small mute" style="margin:8px 0 12px">We have told them you are at table ${TABLE}. You can look through the menu now, and you will be able to order as soon as they approve.</p>
+      <div class="field-label" style="margin-top:0">Your name, so they know who is asking (optional)</div>
+      <div class="row"><input id="gname" maxlength="30" placeholder="For example: Sara" value="${esc(myName)}"><button class="btn ghost" id="again">Notify again</button></div></div>`;
+  }
+  if (st === 'denied') {
+    return `<div class="panel" style="margin-bottom:14px"><div class="row" style="gap:8px">${icon('lock')}<h3>Your waiter couldn't confirm this table</h3></div>
+      <p class="small mute" style="margin:8px 0 12px">If you are sitting at table ${TABLE}, please ask a team member, or try again in a minute.</p>
+      <button class="btn block" id="askreq">Ask again</button></div>`;
+  }
+  if (visitEnded) {
+    return `<div class="panel" style="margin-bottom:14px"><div class="row" style="gap:8px">${icon('check')}<h3>Thank you for visiting</h3></div>
+      <p class="small mute" style="margin:8px 0 12px">Your visit at this table has finished. Staying a little longer or ordering more? Ask your waiter to let you back in.</p>
+      <button class="btn block" id="askreq">I'm still here</button></div>`;
+  }
+  return `<div class="panel" style="margin-bottom:14px"><div class="row" style="gap:8px">${icon('lock')}<h3>Let your waiter know you're here</h3></div>
+    <p class="small mute" style="margin:8px 0 12px">Once a waiter approves your table you can order, pay and play. You can look through the menu in the meantime.</p>
+    <button class="btn block" id="askreq">Notify my waiter</button></div>`;
+}
+const requestJoin = again => api('POST', `/api/table/${TABLE}/request`, { cid: CID, name: myName, again: !!again });
+
+// ---------- load / live ----------
+async function refresh() {
+  try {
+    T = await api('GET', `/api/table/${TABLE}?cid=${CID}`);
+    if (wasJoined && !T.joined) visitEnded = true;          // the table was paid or closed
+    if (!wasJoined && T.joined) { visitEnded = false; if (!firstLoad) toast(`Approved. Welcome to table ${TABLE}.`); }
+    wasJoined = T.joined; firstLoad = false;
+    if (!T.joined && T.joinState === 'none' && !visitEnded && !autoAsked) { // scanning the QR is the request: no code, no extra step
+      autoAsked = true;
+      try { await requestJoin(); T = await api('GET', `/api/table/${TABLE}?cid=${CID}`); } catch (e) { /* the panel offers a retry button */ }
+    }
+    if (tab === 'play' && T.joined) games = (await api('GET', `/api/games?cid=${CID}`)).games;
+    render();
+    checkReceipts();
+  } catch (e) { /* offline: keep last view */ }
+}
+function live() {
+  const es = new EventSource('/api/events');
+  es.onmessage = () => { clearTimeout(live.t); live.t = setTimeout(refresh, 150); };
+}
+
+// ---------- shell ----------
+function renderShell() {
+  $('#rname').textContent = MENU.restaurant;
+  $('#sub').textContent = `Table ${TABLE}${myName ? ' · ' + myName : ''}`;
+  $('#helpbtn').innerHTML = `${icon('bell')} Call waiter`;
+  const tabs = [['menu', 'menu', 'Menu'], ['order', 'order', 'Order'], ['play', 'dice', 'Play'], ['perks', 'star', 'Rewards'], ['bill', 'wallet', 'Pay']];
+  $('#nav').innerHTML = tabs.map(([k, ic, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${icon(ic)}<span>${l}</span>${k === 'order' && cartCount() ? `<span class="dot">${cartCount()}</span>` : ''}</button>`).join('');
+  $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.tab; store.set('tab:' + TABLE, tab); if (tab === 'play') refresh(); else render(); window.scrollTo(0, 0); });
+}
+
+function render() {
+  if (!MENU || !T) return;
+  const a = document.activeElement;
+  if (a && a.closest && a.closest('#view') && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) { renderBanner(); return; } // don't steal focus while typing
+  renderShell(); renderBanner();
+  $('#view').innerHTML = ({ menu: vMenu, order: vOrder, play: vPlay, perks: vPerks, bill: vBill })[tab]();
+  bind();
+}
+
+function renderBanner() {
+  const parts = [];
+  if (T.help) parts.push(`<div class="note">${icon('bell')}<div><b>Waiter notified</b> <span class="mute">· ${esc(T.help.reason)}</span><br><span class="mute">Someone will be with you in a moment.</span></div></div>`);
+  if (T.orders.some(o => o.status === 'ready')) parts.push(`<div class="note ok">${icon('check')}<div><b>Your food is ready</b> and on its way to the table.</div></div>`);
+  for (const r of (T.requests || [])) parts.push(`<div class="note">${icon('key')}<div class="sp"><b>${esc(r.name || 'Someone')}</b> is asking to join this table.</div><button class="btn sm" data-allow="${r.rid}">Allow</button><button class="btn ghost sm" data-deny="${r.rid}">Not with us</button></div>`);
+  $('#banner').innerHTML = parts.join('');
+  document.querySelectorAll('[data-allow],[data-deny]').forEach(b => b.onclick = async () => {
+    try { await api('POST', `/api/table/${TABLE}/approve-guest`, { cid: CID, rid: b.dataset.allow || b.dataset.deny, deny: !!b.dataset.deny }); refresh(); } catch (er) { toast(er.message); }
+  });
+}
+
+// ---------- menu ----------
+function visibleItems() {
+  return MENU.items.filter(i =>
+    (!filter.cat || i.category === filter.cat) &&
+    (!filter.q || (i.name + ' ' + i.desc).toLowerCase().includes(filter.q.toLowerCase())) &&
+    (!filter.diet || i.diet.includes(filter.diet)) &&
+    !filter.avoid.some(a => i.allergens.includes(a)));
+}
+function vMenu() {
+  const cats = MENU.categories;
+  const items = visibleItems();
+  const groups = (filter.cat ? [filter.cat] : cats).map(c => [c, items.filter(i => i.category === c)]).filter(g => g[1].length);
+  const nFilters = (filter.diet ? 1 : 0) + filter.avoid.length;
+  return (T.joined ? '' : gate()) + `
+  <div class="searchrow"><div class="field">${icon('search')}<input id="q" placeholder="Search dishes" value="${esc(filter.q)}"></div>
+    <button class="btn ghost" id="ftoggle">${icon('filter')} Filters${nFilters ? ` (${nFilters})` : ''}</button></div>
+  ${filtersOpen ? `<div class="fpanel"><p class="lbl">Show only</p>
+    <div class="chips">${[['vegetarian', 'Vegetarian'], ['vegan', 'Vegan'], ['halal', 'Halal']].map(([d, l]) => `<button class="chip ${filter.diet === d ? 'on' : ''}" data-diet="${d}">${l}</button>`).join('')}</div>
+    <p class="lbl">Leave out dishes containing</p>
+    <div class="chips">${ALLERGENS.map(a => `<button class="chip ${filter.avoid.includes(a) ? 'on' : ''}" data-avoid="${a}">${a}</button>`).join('')}</div></div>` : ''}
+  <div class="cats"><button class="${!filter.cat ? 'on' : ''}" data-cat="">All</button>${cats.map(c => `<button class="${filter.cat === c ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+  ${groups.length ? groups.map(([c, list]) => `<h2 class="sec">${esc(c)}<span>${list.length}</span></h2>${list.map(itemRow).join('')}`).join('') : '<div class="empty">Nothing matches your filters.</div>'}`;
+}
+// Quick add on the menu: "Add" becomes a − n + stepper once the dish is in the order.
+// Dishes with sizes still open the sheet (you have to pick one); the stepper then shows the total across sizes.
+const qtyInCart = id => cart.reduce((s, l) => s + (l.id === id && !l.reward ? l.qty : 0), 0);
+function qtyControl(i) {
+  const n = qtyInCart(i.id);
+  if (!n) return `<button class="add" data-add="${i.id}" aria-label="Add ${esc(i.name)}">Add</button>`;
+  return `<div class="addq"><button data-qminus="${i.id}" aria-label="Remove one ${esc(i.name)}">${icon('minus')}</button><b>${n}</b><button data-qplus="${i.id}" aria-label="Add one more ${esc(i.name)}">${icon('plus')}</button></div>`;
+}
+function quickChange(id, delta) {
+  const def = MENU.items.find(x => x.id === id);
+  const lines = cart.filter(l => l.id === id && !l.reward);
+  if (delta > 0) {
+    if (def.sizes) return openItem(id); // choose a size first
+    const plain = lines.find(l => !l.notes);
+    if (plain) plain.qty = Math.min(20, plain.qty + 1); else cart.push({ id, size: null, qty: 1, notes: '' });
+  } else if (lines.length) {
+    const plain = [...lines].reverse().find(l => !l.notes) || lines[lines.length - 1]; // newest plain line first
+    plain.qty--; if (plain.qty < 1) cart.splice(cart.indexOf(plain), 1);
+  }
+  saveCart(); render();
+}
+function itemRow(i) {
+  const from = i.sizes ? Math.min(...i.sizes.map(s => i.price + s.add)) : i.price;
+  const meta = [spiceHtml(i.spice), ...i.diet.filter(d => d !== 'vegetarian').map(d => `<span>${d}</span>`), i.allergens.length ? `<span>Contains ${esc(i.allergens.join(', '))}</span>` : ''].filter(Boolean);
+  return `<div class="dish" data-item="${i.id}">
+    <div class="dish-main">
+      ${i.deal ? '<div class="tagline">Combo</div>' : ''}
+      <div class="row" style="gap:8px;align-items:flex-start">${vegDot(i)}<div class="dish-name">${esc(i.name)}</div></div>
+      <div class="dish-price">${i.sizes ? 'from ' : ''}${money(from)}</div>
+      <p class="dish-desc">${esc(i.desc)}</p>
+      ${meta.length ? `<div class="dish-meta">${meta.join('')}</div>` : ''}
+    </div>
+    <div class="dish-photo">${photo(i)}${qtyControl(i)}</div></div>`;
+}
+
+function openItem(id) {
+  const def = MENU.items.find(i => i.id === id);
+  let size = def.sizes ? baseSize(def).name : null, qty = 1, notes = '';
+  const draw = () => {
+    const meta = [spiceHtml(def.spice) || '<span>Not spicy</span>', ...def.diet.filter(d => d !== 'vegetarian').map(d => `<span>${d}</span>`), def.allergens.length ? `<span>Contains ${esc(def.allergens.join(', '))}</span>` : '<span>No listed allergens</span>'];
+    $('#modal').innerHTML = `<div class="overlay" id="ov"><div class="sheet">
+      <div class="hero">${photo(def)}</div>
+      <div class="row" style="align-items:flex-start"><div class="sp"><div class="row" style="gap:8px">${vegDot(def)}<h2 style="font-size:22px">${esc(def.name)}</h2></div>
+        <p class="mute" style="margin:6px 0 0">${esc(def.desc)}</p></div><button class="btn ghost sm" id="x" aria-label="Close">${icon('close')}</button></div>
+      <div class="dish-meta">${meta.join('')}</div>
+      ${def.includes ? `<p class="small mute" style="margin:10px 0 0">Includes: ${esc(def.includes.map(x => MENU.items.find(i => i.id === x).name).join(', '))}</p>` : ''}
+      ${def.sizes ? `<p class="lbl2">Size</p>${def.sizes.map(s => `<button class="opt ${s.name === size ? 'on' : ''}" data-size="${esc(s.name)}"><span class="radio"></span><span class="sp">${esc(s.name)}</span><span class="mute">${money(def.price + s.add)}</span></button>`).join('')}` : ''}
+      <p class="lbl2">Special requests</p>
+      <textarea id="notes" rows="2" maxlength="140" placeholder="For example: no onions, extra spicy" style="margin-top:6px">${esc(notes)}</textarea>
+      <div class="row" style="margin-top:16px">${stepper('id="m"', 'id="p"', qty)}<button class="btn sp" id="add">Add to order · ${money(unitPrice(def, size) * qty)}</button></div></div></div>`;
+    $('#x').onclick = closeModal;
+    $('#ov').onclick = e => { if (e.target.id === 'ov') closeModal(); };
+    document.querySelectorAll('[data-size]').forEach(b => b.onclick = () => { notes = $('#notes').value; size = b.dataset.size; draw(); });
+    $('#m').onclick = () => { notes = $('#notes').value; qty = Math.max(1, qty - 1); draw(); };
+    $('#p').onclick = () => { notes = $('#notes').value; qty = Math.min(20, qty + 1); draw(); };
+    $('#add').onclick = () => {
+      notes = $('#notes').value.trim();
+      const ex = cart.find(l => l.id === id && l.size === size && l.notes === notes && !l.reward);
+      if (ex) ex.qty += qty; else cart.push({ id, size, qty, notes });
+      saveCart(); closeModal(); toast(`${def.name} added`); render();
+    };
+  };
+  draw();
+}
+
+// ---------- order ----------
+const STATUS = { pending: ['Waiting for the waiter to confirm', 'warn'], sent: ['Being prepared', 'info'], ready: ['Ready, on its way', 'ok'], served: ['Served', 'ok'] };
+function vOrder() {
+  let h = T.joined ? '' : gate();
+  if (cart.length) {
+    h += `<h2 class="h">Your order</h2><div class="panel">${cart.map((l, i) => {
+      const d = MENU.items.find(x => x.id === l.id);
+      return `<div class="ln"><div class="sp"><div style="font-weight:600">${esc(d.name)}</div><div class="small mute">${l.size ? esc(l.size) : ''}${l.size && l.notes ? ' · ' : ''}${l.notes ? `“${esc(l.notes)}”` : ''}${l.reward ? 'Free reward' : ''}</div></div>
+        ${l.reward ? `<button class="btn ghost sm" data-del="${i}">Remove</button>` : stepper(`data-dec="${i}"`, `data-inc="${i}"`, l.qty)}
+        <div class="price" style="min-width:70px;text-align:right">${l.reward ? 'Free' : money(unitPrice(d, l.size) * l.qty)}</div></div>`;
+    }).join('')}
+      <div class="tot big"><span>Subtotal</span><span>${money(cartTotal())}</span></div>
+      <button class="btn block" id="place" style="margin-top:14px" ${T.joined ? '' : 'disabled'}>${T.joined ? 'Place order' : 'Waiting for your waiter to approve'}</button>
+      <p class="small mute" style="margin:10px 0 0">Your waiter confirms the order and sends it to the kitchen. You can add more at any time.</p></div>`;
+  } else {
+    h += `<div class="empty">Nothing in your order yet.<br><button class="btn" style="margin-top:14px" data-tab-go="menu">Browse the menu</button></div>`;
+  }
+  if (T.orders.length) {
+    h += `<h2 class="h block-gap">At this table</h2>` + T.orders.slice().reverse().map(o => {
+      const [txt, cls] = STATUS[o.status] || [o.status, ''];
+      const kitchen = o.lines.filter(l => l.station);
+      const done = kitchen.filter(l => l.status === 'ready').length;
+      return `<div class="panel" style="margin-bottom:10px"><div class="row"><b>Order ${o.no}</b>${o.by ? `<span class="mute small">${esc(o.by)}</span>` : ''}<div class="sp"></div><span class="status ${cls}">${txt}</span></div>
+        ${o.status === 'sent' && kitchen.length ? `<div class="bar" style="margin:10px 0 4px"><i style="width:${Math.round(done / kitchen.length * 100)}%"></i></div>` : ''}
+        <div style="margin-top:8px">${o.lines.filter(l => !l.name.startsWith('↳')).map(l => `<div class="small" style="padding:2px 0">${l.qty} × ${esc(l.name)}${l.size ? ` <span class="mute">(${esc(l.size)})</span>` : ''}${l.notes ? ` <span class="mute">· “${esc(l.notes)}”</span>` : ''}</div>`).join('')}</div>
+        ${o.status === 'pending' ? `<button class="btn ghost sm" data-cancel="${o.id}" style="margin-top:10px">Cancel order</button>` : ''}</div>`;
+    }).join('');
+  }
+  return h;
+}
+
+// ---------- play ----------
+const GAMES = [
+  { type: 'ttt', name: 'Noughts & crosses', icon: 'grid', who: 'Two players', d: 'Three in a row wins.' },
+  { type: 'c4', name: 'Connect four', icon: 'connect', who: 'Two players', d: 'Drop discs and line up four.' },
+  { type: 'rps', name: 'Rock, paper, scissors', icon: 'hand', who: 'Two players', d: 'First to win two rounds.' },
+  { solo: 'memory', name: 'Dish memory', icon: 'cards', who: 'Just you', d: 'Find the matching pairs of dishes.' },
+  { solo: 'quiz', name: 'Food quiz', icon: 'question', who: 'Just you', d: 'Five questions about Indian food.' },
+];
+const GAME_NAME = { ttt: 'Noughts & crosses', c4: 'Connect four', rps: 'Rock, paper, scissors' };
+const QUIZ = [
+  { q: 'Which spice gives biryani rice its golden-orange streaks?', a: ['Saffron', 'Cumin', 'Black pepper', 'Fennel'], c: 0 },
+  { q: 'Paneer is made by curdling what?', a: ['Soy beans', 'Milk', 'Coconut', 'Rice'], c: 1 },
+  { q: 'In Hindi, what does "dal" mean?', a: ['Bread', 'Rice', 'Lentils', 'Yoghurt'], c: 2 },
+  { q: 'Which of these is traditionally baked in a tandoor?', a: ['Poori', 'Naan', 'Dosa', 'Idli'], c: 1 },
+  { q: 'Dosa batter is made from rice and which lentil?', a: ['Urad dal', 'Red lentils', 'Chickpeas', 'Green gram'], c: 0 },
+  { q: 'Gulab jamun are dumplings made mainly from what?', a: ['Potato', 'Semolina only', 'Milk solids', 'Rice flour'], c: 2 },
+  { q: 'What is "tadka" (or "tarka")?', a: ['A cooling drink', 'Spices tempered in hot oil or ghee', 'A kind of rice', 'A dessert'], c: 1 },
+  { q: 'Dosa is a staple of which part of India?', a: ['The south', 'The far north', 'The desert west', 'The islands only'], c: 0 },
+  { q: 'Chaas is the Indian name for what?', a: ['Salted buttermilk', 'Sweet tea', 'Coconut water', 'Sugarcane juice'], c: 0 },
+  { q: 'Ghee is a type of what?', a: ['Cooking oil from seeds', 'Clarified butter', 'Cream cheese', 'Sweet syrup'], c: 1 },
+  { q: 'Idli is cooked by which method?', a: ['Deep frying', 'Grilling', 'Steaming', 'Baking'], c: 2 },
+  { q: 'Which of these is NOT a bread?', a: ['Roti', 'Paratha', 'Raita', 'Naan'], c: 2 },
+  { q: 'Jalebi is made by frying batter in what shape?', a: ['Spirals', 'Squares', 'Triangles', 'Balls'], c: 0 },
+  { q: 'Kulfi is best described as…', a: ['A frozen milk dessert', 'A fried snack', 'A spicy chutney', 'A rice pudding served hot'], c: 0 },
+];
+let solo = null;               // a solo game in progress (memory or quiz); lives only on this phone
+const hiddenGames = new Set(); // finished or abandoned two-player games this guest has dismissed
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function myGame() { return games.find(g => g.me && !hiddenGames.has(g.id)); } // the server tells us which side we are; it never sends device ids
+
+function vPlay() {
+  if (!T.joined) return gate();
+  if (solo) return vSolo();
+  const g = myGame();
+  return g ? vGame(g) : vLobby();
+}
+function vLobby() {
+  const open = games.filter(x => !x.o && !x.me);
+  return `<h2 class="h">Play while you wait</h2>
+  <p class="mute small" style="margin:0 0 4px">Challenge someone at your table or another table. A win in a two-player game earns ${MENU.rewards.gameWin} reward points (up to 3 wins a day).</p>
+  ${GAMES.map(g => `<button class="gm" ${g.type ? `data-gstart="${g.type}"` : `data-solo="${g.solo}"`}>${icon(g.icon, 'big')}<div class="sp"><div class="who">${g.who}</div><div class="t">${g.name}</div><div class="d">${g.d}</div></div>${icon('chevron')}</button>`).join('')}
+  ${open.length ? `<h2 class="h block-gap">Waiting for a player</h2><div class="panel">${open.map(x => `<div class="kv"><div class="sp"><b>${esc(x.x.name)}</b> <span class="mute small">Table ${x.x.table} · ${esc(x.label || GAME_NAME[x.type])}</span></div><button class="btn sm" data-join="${x.id}">Join</button></div>`).join('')}</div>` : ''}`;
+}
+function vGame(g) {
+  const me = g.me, opp = me === 'x' ? g.o : g.x, won = g.winner === me;
+  const oppName = opp ? esc(opp.name) : 'your opponent';
+  let status;
+  if (!g.o) status = 'Waiting for an opponent to join';
+  else if (g.winner === 'draw') status = 'A draw';
+  else if (g.winner) status = g.forfeit ? (won ? 'Your opponent left. You win.' : 'You left the game.') : won ? `You won (+${MENU.rewards.gameWin} points, up to 3 wins a day)` : `${oppName} won`;
+  else if (g.type === 'rps') status = g.rps.mine ? 'Waiting for your opponent to choose' : 'Choose your move';
+  else status = g.turn === me ? 'Your turn' : `${oppName}'s turn`;
+  const myTurn = g.o && !g.winner && g.turn === me;
+  let board = '';
+  if (g.type === 'ttt') {
+    board = `<div class="board">${g.board.map((c, i) => `<button data-cell="${i}" data-game="${g.id}" ${c || !myTurn ? 'disabled' : ''} style="color:${c === 'x' ? 'var(--brand)' : 'var(--accent)'}">${c ? c.toUpperCase() : ''}</button>`).join('')}</div>`;
+  } else if (g.type === 'c4') {
+    board = `<div class="c4">${g.board.map((c, i) => `<button class="${c}" data-col="${i % 7}" data-game="${g.id}" ${!myTurn || g.board[i % 7] ? 'disabled' : ''} aria-label="Column ${i % 7 + 1}"></button>`).join('')}</div>
+      <p class="small mute" style="margin:0">You are the ${me === 'x' ? 'gold' : 'green'} discs. Tap a column to drop a disc.</p>`;
+  } else if (g.type === 'rps') {
+    const r = g.rps, my = me, their = me === 'x' ? 'o' : 'x';
+    const nm = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors' };
+    board = `<div class="big-n" style="margin-top:14px">${r.score[my]} <span class="mute" style="font-size:22px">–</span> ${r.score[their]}</div><div class="small mute">first to ${r.target}</div>
+      <div class="rps">${['rock', 'paper', 'scissors'].map(c => `<button data-choice="${c}" data-game="${g.id}" class="${r.mine === c ? 'on' : ''}" ${g.winner || !g.o || r.mine ? 'disabled' : ''}>${icon(c)}<span>${nm[c]}</span></button>`).join('')}</div>
+      ${r.rounds.length ? `<div class="small" style="text-align:left">${r.rounds.map((x, i) => `<div class="kv"><span class="mute">Round ${i + 1}</span><span class="sp">You ${nm[x[my]].toLowerCase()}, ${oppName} ${nm[x[their]].toLowerCase()}</span><b>${x.result === 'draw' ? 'Draw' : x.result === my ? 'You' : 'Them'}</b></div>`).join('')}</div>` : ''}`;
+  }
+  return `<div class="row"><h2 class="h sp" style="margin:0">${esc(g.label || GAME_NAME[g.type])}</h2><span class="mute small">${opp ? 'vs ' + esc(opp.name) + ', table ' + opp.table : ''}</span></div>
+    <div class="panel" style="margin-top:12px;text-align:center"><div style="font-weight:600">${status}</div>${board}
+      <div class="row" style="justify-content:center;margin-top:14px">${g.winner ? `<button class="btn" data-gstart="${g.type}">Play again</button><button class="btn ghost" data-hide="${g.id}">All games</button>` : `<button class="btn ghost" data-leave="${g.id}">${g.o ? 'Leave game' : 'Cancel'}</button>`}</div></div>`;
+}
+
+// ----- solo: dish memory -----
+function startMemory() {
+  const pool = shuffle(MENU.items.filter(i => !i.includes && imgOf(i))).slice(0, 6);
+  solo = { type: 'memory', cards: shuffle([...pool, ...pool]).map((it, k) => ({ k, id: it.id, img: imgOf(it), name: it.name, up: false, done: false })), first: null, lock: false, moves: 0, t0: 0, t1: 0 };
+  render();
+}
+function memFlip(k) {
+  const m = solo; if (!m || m.type !== 'memory' || m.lock) return;
+  const c = m.cards[k]; if (c.up || c.done) return;
+  if (!m.t0) m.t0 = Date.now();
+  c.up = true;
+  if (m.first == null) { m.first = k; return render(); }
+  m.moves++;
+  const a = m.cards[m.first]; m.first = null;
+  if (a.id === c.id) { a.done = c.done = true; if (m.cards.every(x => x.done)) m.t1 = Date.now(); return render(); }
+  m.lock = true; render();
+  setTimeout(() => { if (solo !== m) return; a.up = c.up = false; m.lock = false; render(); }, 800);
+}
+// ----- solo: food quiz -----
+function startQuiz() {
+  solo = { type: 'quiz', qs: shuffle(QUIZ).slice(0, 5).map(q => ({ q: q.q, opts: shuffle(q.a.map((t, i) => ({ t, ok: i === q.c }))) })), i: 0, score: 0, picked: null };
+  render();
+}
+function vSolo() {
+  const back = `<button class="btn ghost" data-solo-exit>All games</button>`;
+  if (solo.type === 'memory') {
+    const m = solo, done = m.cards.every(c => c.done), secs = m.t1 ? Math.round((m.t1 - m.t0) / 1000) : 0;
+    return `<div class="row"><h2 class="h sp" style="margin:0">Dish memory</h2><span class="mute small">${m.moves} moves</span></div>
+      <div class="mem">${m.cards.map(c => `<button class="mc ${c.done ? 'done' : ''}" data-mflip="${c.k}" aria-label="${c.up || c.done ? esc(c.name) : 'Hidden card'}">${c.up || c.done ? `<img src="${esc(c.img)}" alt="${esc(c.name)}">` : icon('fork')}</button>`).join('')}</div>
+      ${done ? `<div class="panel" style="text-align:center"><b>All pairs found</b><div class="mute small" style="margin:4px 0 12px">${m.moves} moves in ${secs} seconds</div><div class="row" style="justify-content:center"><button class="btn" data-solo="memory">Play again</button>${back}</div></div>` : `<div>${back}</div>`}`;
+  }
+  const z = solo, q = z.qs[z.i], over = z.i >= z.qs.length;
+  if (over) return `<h2 class="h">Food quiz</h2><div class="panel" style="text-align:center"><div class="big-n">${z.score}<span class="mute" style="font-size:22px"> / ${z.qs.length}</span></div>
+    <p class="mute" style="margin:8px 0 14px">${z.score === z.qs.length ? 'A true food expert.' : z.score >= 3 ? 'Nicely done.' : 'Time for another plate of research.'}</p>
+    <div class="row" style="justify-content:center"><button class="btn" data-solo="quiz">Play again</button>${back}</div></div>`;
+  return `<div class="row"><h2 class="h sp" style="margin:0">Food quiz</h2><span class="mute small">Question ${z.i + 1} of ${z.qs.length}</span></div>
+    <div class="panel" style="margin-top:12px"><div style="font:600 18px var(--serif);margin-bottom:6px">${esc(q.q)}</div>
+    ${q.opts.map((o, i) => `<button class="opt ${z.picked == null ? '' : o.ok ? 'right' : i === z.picked ? 'wrong' : ''}" data-qpick="${i}" ${z.picked != null ? 'disabled' : ''}><span class="sp">${esc(o.t)}</span></button>`).join('')}
+    ${z.picked != null ? `<div class="row" style="margin-top:14px"><b class="sp" style="color:var(--${q.opts[z.picked].ok ? 'ok' : 'bad'})">${q.opts[z.picked].ok ? 'Correct' : 'Not quite'}</b><button class="btn" data-qnext>${z.i + 1 >= z.qs.length ? 'See score' : 'Next question'}</button></div>` : ''}</div>
+    <div style="margin-top:12px">${back}</div>`;
+}
+
+// ---------- rewards ----------
+function vPerks() {
+  const R = MENU.rewards, pts = T.me ? T.me.points : 0;
+  const pct = Math.min(100, pts / R.redeemAt * 100);
+  const reward = MENU.items.find(i => i.id === R.redeemItem);
+  return `
+  <h2 class="h">Rewards</h2>
+  <div class="panel"><div class="big-n">${pts}<span class="mute" style="font:15px system-ui;margin-left:8px">points</span></div>
+    <div class="bar" style="margin:12px 0 8px"><i style="width:${pct}%"></i></div>
+    <p class="small mute" style="margin:0 0 12px">${pts >= R.redeemAt ? `You can claim a free ${esc(reward.name)}.` : `${R.redeemAt - pts} more points for a free ${esc(reward.name)}.`}</p>
+    <button class="btn block" id="redeem" ${pts >= R.redeemAt ? '' : 'disabled'}>Claim a free ${esc(reward.name)} (${R.redeemAt} points)</button>
+    <p class="small mute" style="margin:12px 0 0">You earn ${R.perOrder} points for each order, 1 point for every ${money(Math.round(1 / R.perCurrencyUnit))} you pay, ${R.gameWin} for a game win and 5 for a review. Points stay on this phone.</p></div>
+  <h2 class="h block-gap">Wi-Fi</h2>
+  <div class="panel">${T.joined && T.wifi
+    ? `<div class="kv"><span class="mute" style="width:84px">Network</span><b class="sp">${esc(T.wifi.ssid)}</b></div>
+       <div class="kv"><span class="mute" style="width:84px">Password</span><b class="sp">${esc(T.wifi.password)}</b><button class="btn ghost sm" id="cp">${icon('copy')} Copy</button></div>`
+    : '<p class="small mute" style="margin:0">Your waiter needs to approve your table first. Then the Wi-Fi password appears here.</p>'}</div>
+  <h2 class="h block-gap">Your name</h2>
+  <div class="panel"><p class="small mute" style="margin:0 0 8px">Shown to your opponent and on your orders.</p><input id="nm" maxlength="30" placeholder="For example: Sara" value="${esc(myName)}"></div>
+  <p class="small mute" style="margin-top:18px"><a href="/credits.html">Photo credits</a></p>`;
+}
+
+// ---------- bill ----------
+function payCalc() {
+  const b = T.bill; let amount = 0;
+  if (pay.mode === 'all') amount = b.balance;
+  else if (pay.mode === 'equal') amount = pay.people <= 1 ? b.balance : Math.round(b.balance / pay.people * 100) / 100;
+  else if (pay.mode === 'items') amount = Math.round(b.lines.filter(l => pay.keys.includes(l.key)).reduce((s, l) => s + l.price * l.qty, 0) * (1 + MENU.taxRate) * 100) / 100;
+  else amount = Math.min(b.balance, Math.max(0, Number(pay.amount) || 0));
+  amount = Math.min(amount, b.balance);
+  const tip = pay.tipPct === 'custom' ? Math.max(0, Number(pay.tipCustom) || 0) : Math.round(amount * pay.tipPct) / 100;
+  return { amount, tip: Math.round(tip * 100) / 100 };
+}
+const METHOD_ICON = { online: 'card', card: 'card', applepay: 'phone', googlepay: 'phone', bank: 'bank', cash: 'cash' };
+function vBill() {
+  if (!T.joined) return gate();
+  const b = T.bill;
+  const mine = T.myPayments.filter(p => p.status === 'pending' && p.table === TABLE);
+  if (!b.lines.length) return `<div class="empty">No bill yet.<br>Once you order, it appears here.</div>`;
+  const { amount, tip } = payCalc();
+  const unpaid = b.lines.filter(l => !l.paid);
+  const methods = MENU.onlinePayments ? [['online', 'Card, Apple Pay or Google Pay'], ['bank', 'Bank transfer'], ['cash', 'Cash']] : [['card', 'Card'], ['applepay', 'Apple Pay'], ['googlepay', 'Google Pay'], ['bank', 'Bank transfer'], ['cash', 'Cash']];
+  return `
+  <h2 class="h">Bill · Table ${TABLE}</h2>
+  <div class="panel">
+    ${b.lines.map(l => `<div class="tot ${l.paid ? 'mute' : ''}"><span>${l.qty} × ${esc(l.name)}${l.size ? ` (${esc(l.size)})` : ''}${l.paid ? ' · paid' : ''}</span><span>${money(l.price * l.qty)}</span></div>`).join('')}
+    <div class="tot mute" style="margin-top:6px"><span>${esc(MENU.taxName)} (${Math.round(MENU.taxRate * 100)}%)</span><span>${money(b.tax)}</span></div>
+    <div class="tot big"><span>Total</span><span>${money(b.total)}</span></div>
+    ${b.paid ? `<div class="tot mute"><span>Paid so far</span><span>− ${money(b.paid)}</span></div><div class="tot big" style="border-top:0;margin-top:0;padding-top:0"><span>Remaining</span><span>${money(b.balance)}</span></div>` : ''}
+  </div>
+  ${T.myPayments.some(p => p.status === 'awaiting' && p.table === TABLE) ? `<div class="note" style="margin-top:12px">${icon('clock')}<div><b>Finishing your online payment</b><br><span class="mute">If you closed the payment page, you can pay again in a minute, or <a href="#" id="abandon">cancel it now</a>.</span></div></div>` : ''}
+  ${mine.length ? `<div class="note" style="margin-top:12px">${icon('clock')}<div><b>Waiting for your waiter</b> to confirm ${mine.map(p => `${money(p.amount + p.tip)} (${p.method})`).join(', ')}.</div></div>` : ''}
+  ${b.balance <= 0.004 ? '' : `
+  <h2 class="h block-gap">How to pay</h2>
+  <div class="panel">
+    <div class="seg" style="margin-top:0">${[['all', 'Everything'], ['equal', 'Split equally'], ['items', 'Pick items'], ['amount', 'Custom amount']].map(([k, l]) => `<button class="${pay.mode === k ? 'on' : ''}" data-mode="${k}">${l}</button>`).join('')}</div>
+    ${pay.mode === 'equal' ? `<div class="row" style="margin-top:12px"><span>Split between</span>${stepper('id="pm"', 'id="pp"', pay.people)}<span>people</span></div>` : ''}
+    ${pay.mode === 'items' ? `<div style="margin-top:6px">${unpaid.map(l => `<label class="sel"><input type="checkbox" data-key="${l.key}" ${pay.keys.includes(l.key) ? 'checked' : ''}><span class="sp">${l.qty} × ${esc(l.name)}</span><span>${money(l.price * l.qty)}</span></label>`).join('')}</div>` : ''}
+    ${pay.mode === 'amount' ? `<input id="amt" type="number" min="1" inputmode="decimal" placeholder="Amount" value="${esc(pay.amount)}" style="margin-top:12px">` : ''}
+    <div class="tot big"><span>Your share, with ${esc(MENU.taxName)}</span><span>${money(amount)}</span></div></div>
+  <h2 class="h block-gap">Tip</h2>
+  <div class="panel"><div class="chips">${[0, 5, 10, 15].map(p => `<button class="chip ${pay.tipPct === p ? 'on' : ''}" data-tip="${p}">${p ? p + '%' : 'No tip'}</button>`).join('')}<button class="chip ${pay.tipPct === 'custom' ? 'on' : ''}" data-tip="custom">Other</button></div>
+    ${pay.tipPct === 'custom' ? `<input id="tipc" type="number" min="0" inputmode="decimal" placeholder="Tip amount" value="${esc(pay.tipCustom)}" style="margin-top:10px">` : ''}
+    <div class="tot" style="margin-top:8px"><span class="mute">Tip</span><span>${money(tip)}</span></div></div>
+  <h2 class="h block-gap">Payment method</h2>
+  <div class="panel">${methods.map(([k, l]) => `<button class="opt ${pay.method === k ? 'on' : ''}" data-method="${k}" style="margin-top:0;margin-bottom:8px"><span class="radio"></span>${icon(METHOD_ICON[k])}<span class="sp">${l}</span></button>`).join('')}
+    <p class="small mute" style="margin:2px 0 12px">${pay.method === 'cash' ? 'Your waiter will come to collect the cash.' : pay.method === 'bank' ? 'Transfer to the restaurant account. Your waiter confirms it when it arrives.' : MENU.onlinePayments ? 'You will go to a secure payment page. Apple Pay and Google Pay appear there if your phone supports them.' : 'Demo payment: nothing is charged. Connect a payment provider before going live.'}</p>
+    <div class="field-label" style="margin-top:0">Get your receipt on WhatsApp (optional)</div>
+    <div class="row" style="gap:8px"><span class="ccode">+${esc(MENU.phoneCountryCode)}</span><input id="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="98765 43210" value="${esc(pay.phone)}"></div>
+    <p class="small mute" style="margin:6px 0 0">Add your number and we will send your receipt and a thank-you on WhatsApp: one message, and your number is not saved.</p>
+    <button class="btn block" id="pay" style="margin-top:14px" ${amount > 0 ? '' : 'disabled'}>Pay ${money(amount + tip)}</button></div>`}`;
+}
+
+// ---------- receipts & reviews ----------
+async function checkReceipts() {
+  for (const p of T.myPayments) {
+    if (p.status === 'confirmed' && !shownReceipts.has(p.id)) {
+      shownReceipts.add(p.id); store.set('rc', [...shownReceipts]);
+      try { showReceipt(await api('GET', '/api/payment/' + p.id)); } catch {}
+      return;
+    }
+  }
+}
+// What we tell the guest about their WhatsApp receipt, and the one-tap share to friends and family.
+const pdfUrl = id => `/api/payment/${id}/receipt.pdf?cid=${CID}`;
+const canSharePdf = () => { try { return !!(navigator.canShare && navigator.canShare({ files: [new File([''], 'r.pdf', { type: 'application/pdf' })] })); } catch { return false; } };
+const waLink = (to, text) => `https://wa.me/${to ? to : ''}?text=${encodeURIComponent(text)}`;
+const shareText = () => `Had a lovely meal at ${MENU.restaurant}, you should try it too!${MENU.address ? '\n' + MENU.address : ''}${MENU.mapsUrl ? '\n' + MENU.mapsUrl : ''}`;
+function showReceipt(p) {
+  let rating = 0, comment = '', sent = false;
+  const gUrl = MENU.googleReviewUrl;
+  const myPhone = () => { const d = String(pay.phone || '').replace(/\D/g, ''); return d ? (d.length <= 11 ? MENU.phoneCountryCode + d.replace(/^0+/, '') : d) : ''; };
+  const waLine = () => {
+    if (!p.waMasked) return 'Add your WhatsApp number on the Pay tab next time to get your receipt there.';
+    if (p.waStatus === 'sent') return `Your receipt${MENU.whatsappPdf ? ' (PDF)' : ''} and a thank-you were sent to WhatsApp ${esc(p.waMasked)}.`;
+    if (p.waStatus === 'failed') return `We couldn't send your receipt to WhatsApp. Please keep this copy.`;
+    if (p.waStatus === 'not-configured') return 'WhatsApp receipts are not switched on at this restaurant yet. You can send this receipt to yourself below.';
+    return `Sending your receipt to WhatsApp ${esc(p.waMasked)}`;
+  };
+  const draw = () => {
+    $('#modal').innerHTML = `<div class="overlay"><div class="sheet">
+      <div class="row" style="gap:8px"><span style="color:var(--ok)">${icon('check')}</span><h2 style="font-size:22px">Payment received</h2></div>
+      <p class="mute small" style="margin:6px 0 12px">${waLine()}</p>
+      <pre class="rc">${esc(p.receipt || '')}</pre>
+      <div class="row" style="margin-top:10px;flex-wrap:wrap"><a class="btn sp" href="${pdfUrl(p.id)}" target="_blank" rel="noopener" download="Receipt-${esc(String(p.id).slice(0, 6).toUpperCase())}.pdf">${icon('download')} Download PDF receipt</a>${canSharePdf() ? `<button class="btn ghost sp" id="sharepdf">${icon('out')} Share PDF</button>` : ''}</div>
+      ${p.waStatus === 'not-configured' && myPhone() ? `<a class="btn ghost block" style="margin-top:10px" target="_blank" rel="noopener" href="${esc(waLink(myPhone(), `Receipt from ${MENU.restaurant}\n\n${p.receipt || ''}`))}">Send the receipt to my WhatsApp ${icon('out')}</a>` : ''}
+      <div class="panel" style="margin-top:16px"><h3>Thank you for visiting ${esc(MENU.restaurant)}</h3>
+        <p class="small mute" style="margin:6px 0 ${MENU.address || MENU.mapsUrl ? '10' : '0'}px">We hope you enjoyed your meal and that we see you again soon.</p>
+        ${MENU.address || MENU.mapsUrl ? `<div class="small" style="margin-bottom:12px"><b>Find us</b><br>${esc(MENU.address || MENU.restaurant)}</div>
+        <div class="row" style="flex-wrap:wrap"><a class="btn sp" target="_blank" rel="noopener" href="${esc(waLink('', shareText()))}">Share with friends &amp; family</a>${MENU.mapsUrl ? `<a class="btn ghost" target="_blank" rel="noopener" href="${esc(MENU.mapsUrl)}">${icon('map')} Directions</a>` : ''}</div>` : ''}</div>
+      ${sent ? `<div class="note ok" style="margin-top:14px">${icon('check')}<div><b>Thank you for your feedback.</b> <span class="mute">+5 points</span></div></div>` : `
+      <h3 style="margin-top:18px">How was everything?</h3>
+      <div class="stars">${[1, 2, 3, 4, 5].map(n => `<button data-star="${n}" class="${n <= rating ? 'on' : ''}" aria-label="${n} star${n > 1 ? 's' : ''}">${icon('star')}</button>`).join('')}</div>
+      ${rating ? '<textarea id="rv" rows="3" placeholder="Tell us more (optional)">' + esc(comment) + '</textarea>' : ''}
+      ${rating ? '<button class="btn block" id="send" style="margin-top:10px">Send feedback to the restaurant</button>' : ''}`}
+      ${gUrl ? `<div class="panel" style="margin-top:16px"><b>Share your experience on Google</b>
+        <p class="small mute" style="margin:6px 0 12px">Optional, and open to everyone. It is posted from your own Google account; nothing is sent to Google automatically.${comment ? ' Your note will be copied so you can paste it.' : ''}</p>
+        <button class="btn ghost block" id="gbtn">Write a Google review ${icon('out')}</button></div>` : ''}
+      <button class="btn ghost block" id="skip" style="margin-top:14px">Close</button></div></div>`;
+    document.querySelectorAll('[data-star]').forEach(b => b.onclick = () => { if ($('#rv')) comment = $('#rv').value; rating = Number(b.dataset.star); draw(); });
+    $('#skip').onclick = closeModal;
+    const sp = $('#sharepdf');
+    if (sp) sp.onclick = async () => {
+      try {
+        const blob = await (await fetch(pdfUrl(p.id))).blob();
+        await navigator.share({ files: [new File([blob], `Receipt-${String(p.id).slice(0, 6).toUpperCase()}.pdf`, { type: 'application/pdf' })], title: `Receipt from ${MENU.restaurant}` });
+      } catch (e) { if (e.name !== 'AbortError') toast('Could not share the PDF. Use Download instead.'); }
+    };
+    const g = $('#gbtn');
+    if (g) g.onclick = () => {
+      if ($('#rv')) comment = $('#rv').value;
+      if (comment && navigator.clipboard) navigator.clipboard.writeText(comment).then(() => toast('Your note is copied. Paste it on Google.'), () => {});
+      window.open(gUrl, '_blank', 'noopener');
+    };
+    const send = $('#send');
+    if (send) send.onclick = async () => {
+      comment = $('#rv').value; send.disabled = true;
+      try { await api('POST', '/api/review', { table: TABLE, paymentId: p.id, rating, comment, name: myName, cid: CID }); sent = true; draw(); refresh(); } catch (e) { toast(e.message); send.disabled = false; }
+    };
+  };
+  draw();
+  if (p.waMasked && !p.waStatus) setTimeout(async () => { // the WhatsApp send is asynchronous: check how it went
+    try { const f = await api('GET', '/api/payment/' + p.id); p.waStatus = f.waStatus; if ($('#modal .sheet') && $('.rc')) { const keep = $('#rv') ? $('#rv').value : comment; comment = keep; draw(); } } catch {}
+  }, 2500);
+}
+
+// ---------- events ----------
+const callWaiter = async reason => { await api('POST', '/api/call', { table: TABLE, cid: CID, reason }); toast('Your waiter has been notified'); refresh(); };
+
+function bind() {
+  const v = $('#view');
+  v.querySelectorAll('[data-item]').forEach(e => e.onclick = () => openItem(e.dataset.item));
+  // quick add / stepper on the dish photo: don't let the tap also open the dish sheet
+  const quick = (sel, attr, delta) => v.querySelectorAll(sel).forEach(e => e.onclick = ev => { ev.stopPropagation(); quickChange(e.dataset[attr], delta); });
+  quick('[data-add]', 'add', 1); quick('[data-qplus]', 'qplus', 1); quick('[data-qminus]', 'qminus', -1);
+  v.querySelectorAll('[data-cat]').forEach(e => e.onclick = () => { filter.cat = e.dataset.cat || null; render(); });
+  const ft = $('#ftoggle'); if (ft) ft.onclick = () => { filtersOpen = !filtersOpen; render(); };
+  v.querySelectorAll('[data-diet]').forEach(e => e.onclick = () => { filter.diet = filter.diet === e.dataset.diet ? null : e.dataset.diet; render(); });
+  v.querySelectorAll('[data-avoid]').forEach(e => e.onclick = () => { const a = e.dataset.avoid; filter.avoid = filter.avoid.includes(a) ? filter.avoid.filter(x => x !== a) : [...filter.avoid, a]; render(); });
+  const q = $('#q');
+  if (q) q.oninput = () => { // render() skips while typing, so rebuild the menu here and restore the caret
+    filter.q = q.value; const sel = q.selectionStart;
+    $('#view').innerHTML = vMenu(); bind();
+    const nq = $('#q'); nq.focus(); nq.setSelectionRange(sel, sel);
+  };
+
+  const askReq = async e => { if (e && e.preventDefault) e.preventDefault(); try { visitEnded = false; await requestJoin(); toast('Your waiter has been notified'); refresh(); } catch (er) { toast(er.message); refresh(); } };
+  const ar = $('#askreq'); if (ar) ar.onclick = askReq;
+  const ag = $('#again'); if (ag) ag.onclick = async () => { try { await requestJoin(true); toast('Your waiter has been notified again'); ag.disabled = true; setTimeout(() => { if (ag.isConnected) ag.disabled = false; }, 30000); } catch (er) { toast(er.message); } };
+  const gn = $('#gname'); if (gn) gn.onchange = async () => { myName = gn.value.trim(); store.set('name', myName); await api('POST', '/api/me', { cid: CID, name: myName }).catch(() => {}); requestJoin().catch(() => {}); renderShell(); };
+  v.querySelectorAll('[data-inc]').forEach(e => e.onclick = () => { cart[e.dataset.inc].qty = Math.min(20, cart[e.dataset.inc].qty + 1); saveCart(); render(); });
+  v.querySelectorAll('[data-dec]').forEach(e => e.onclick = () => { const l = cart[e.dataset.dec]; l.qty--; if (l.qty < 1) cart.splice(e.dataset.dec, 1); saveCart(); render(); });
+  v.querySelectorAll('[data-del]').forEach(e => e.onclick = () => { cart.splice(e.dataset.del, 1); saveCart(); render(); });
+  v.querySelectorAll('[data-tab-go]').forEach(e => e.onclick = () => { tab = e.dataset.tabGo; render(); });
+  v.querySelectorAll('[data-cancel]').forEach(e => e.onclick = async () => { try { await api('POST', `/api/order/${e.dataset.cancel}/cancel`, { cid: CID }); toast('Order cancelled'); refresh(); } catch (er) { toast(er.message); } });
+  const place = $('#place');
+  if (place) place.onclick = async () => {
+    place.disabled = true;
+    try {
+      await api('POST', '/api/order', { table: TABLE, cid: CID, items: cart.map(l => ({ id: l.id, size: l.size, qty: l.qty, notes: l.notes, reward: !!l.reward })) });
+      cart = []; saveCart(); toast('Order placed. Your waiter will confirm it shortly.'); refresh();
+    } catch (e) { toast(e.message); place.disabled = false; }
+  };
+
+  v.querySelectorAll('[data-gstart]').forEach(e => e.onclick = async () => { try { solo = null; await api('POST', '/api/game/new', { cid: CID, table: TABLE, type: e.dataset.gstart }); refresh(); } catch (er) { toast(er.message); } });
+  v.querySelectorAll('[data-join]').forEach(e => e.onclick = async () => { try { solo = null; await api('POST', `/api/game/${e.dataset.join}/join`, { cid: CID, table: TABLE }); refresh(); } catch (er) { toast(er.message); refresh(); } });
+  const mv = (e, body) => api('POST', `/api/game/${e.dataset.game}/move`, Object.assign({ cid: CID }, body)).then(refresh).catch(er => toast(er.message));
+  v.querySelectorAll('[data-cell]').forEach(e => e.onclick = () => mv(e, { cell: Number(e.dataset.cell) }));
+  v.querySelectorAll('[data-col]').forEach(e => e.onclick = () => mv(e, { col: Number(e.dataset.col) }));
+  v.querySelectorAll('[data-choice]').forEach(e => e.onclick = () => mv(e, { choice: e.dataset.choice }));
+  v.querySelectorAll('[data-leave]').forEach(e => e.onclick = async () => { try { await api('POST', `/api/game/${e.dataset.leave}/leave`, { cid: CID }); hiddenGames.add(e.dataset.leave); refresh(); } catch (er) { toast(er.message); } });
+  v.querySelectorAll('[data-hide]').forEach(e => e.onclick = () => { hiddenGames.add(e.dataset.hide); render(); });
+  v.querySelectorAll('[data-solo]').forEach(e => e.onclick = () => e.dataset.solo === 'memory' ? startMemory() : startQuiz());
+  v.querySelectorAll('[data-solo-exit]').forEach(e => e.onclick = () => { solo = null; render(); });
+  v.querySelectorAll('[data-mflip]').forEach(e => e.onclick = () => memFlip(Number(e.dataset.mflip)));
+  v.querySelectorAll('[data-qpick]').forEach(e => e.onclick = () => { if (solo && solo.picked == null) { solo.picked = Number(e.dataset.qpick); if (solo.qs[solo.i].opts[solo.picked].ok) solo.score++; render(); } });
+  v.querySelectorAll('[data-qnext]').forEach(e => e.onclick = () => { solo.i++; solo.picked = null; render(); });
+
+  const redeem = $('#redeem'); if (redeem) redeem.onclick = () => { if (!cart.some(l => l.reward)) cart.push({ id: MENU.rewards.redeemItem, size: null, qty: 1, notes: '', reward: true }); saveCart(); tab = 'order'; render(); toast('Reward added to your order'); };
+  const cp = $('#cp'); if (cp) cp.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(T.wifi.password).then(() => toast('Password copied'), () => toast(T.wifi.password)); };
+  const nm = $('#nm'); if (nm) nm.onchange = async () => { myName = nm.value.trim(); store.set('name', myName); await api('POST', '/api/me', { cid: CID, name: myName }); renderShell(); };
+
+  const ab = $('#abandon'); if (ab) ab.onclick = async e => { e.preventDefault(); const p = T.myPayments.find(x => x.status === 'awaiting' && x.table === TABLE); if (p) { await api('POST', `/api/payment/${p.id}/abandon`, { cid: CID }).catch(() => {}); refresh(); } };
+  v.querySelectorAll('[data-mode]').forEach(e => e.onclick = () => { pay.mode = e.dataset.mode; render(); });
+  v.querySelectorAll('[data-tip]').forEach(e => e.onclick = () => { pay.tipPct = e.dataset.tip === 'custom' ? 'custom' : Number(e.dataset.tip); render(); });
+  v.querySelectorAll('[data-method]').forEach(e => e.onclick = () => { pay.method = e.dataset.method; render(); });
+  v.querySelectorAll('[data-key]').forEach(e => e.onchange = () => { pay.keys = e.checked ? [...pay.keys, e.dataset.key] : pay.keys.filter(k => k !== e.dataset.key); render(); });
+  const pm = $('#pm'); if (pm) pm.onclick = () => { pay.people = Math.max(1, pay.people - 1); render(); };
+  const pp = $('#pp'); if (pp) pp.onclick = () => { pay.people = Math.min(20, pay.people + 1); render(); };
+  const amt = $('#amt'); if (amt) amt.onchange = () => { pay.amount = amt.value; render(); };
+  const tipc = $('#tipc'); if (tipc) tipc.onchange = () => { pay.tipCustom = tipc.value; render(); };
+  const ph = $('#phone'); if (ph) ph.onchange = () => { pay.phone = ph.value.trim(); store.set('phone', pay.phone); };
+  const pb = $('#pay');
+  if (pb) pb.onclick = async () => {
+    const { tip } = payCalc();
+    if (ph) { pay.phone = ph.value.trim(); store.set('phone', pay.phone); }
+    pb.disabled = true;
+    try {
+      const r = await api('POST', '/api/pay', { table: TABLE, cid: CID, mode: pay.mode, people: pay.people, keys: pay.keys, amount: pay.amount, tip, method: pay.method, phone: pay.phone, whatsapp: !!pay.phone });
+      pay.keys = [];
+      if (r.checkoutUrl) { location.href = r.checkoutUrl; return; } // secure hosted payment page
+      if (r.status === 'pending') toast('Thank you. Your waiter is coming to confirm the payment.');
+      await refresh();
+    } catch (e) { toast(e.message); pb.disabled = false; }
+  };
+}
+
+$('#helpbtn').onclick = async () => {
+  if (T && !T.joined) { // not approved yet: ringing again is the only useful thing to do
+    try { visitEnded = false; await requestJoin(true); toast('Your waiter has been notified'); refresh(); } catch (e) { toast(e.message); }
+    return;
+  }
+  const reasons = ['Call a waiter', 'Water, please', 'Extra cutlery or napkins', 'A question about the menu', 'Bring the bill', 'Something is wrong'];
+  $('#modal').innerHTML = `<div class="overlay" id="ov"><div class="sheet"><h2 style="font-size:22px">How can we help?</h2><div style="margin-top:8px">${reasons.map(r => `<button class="opt" data-r="${esc(r)}"><span class="sp">${esc(r)}</span>${icon('chevron')}</button>`).join('')}</div></div></div>`;
+  $('#ov').onclick = e => { if (e.target.id === 'ov') closeModal(); };
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = async () => { try { await callWaiter(b.dataset.r); closeModal(); } catch (e) { toast(e.message); } });
+};
+
+// Back from the hosted payment page (?paid=<id> or ?cancel=<id>).
+async function handleReturnFromCheckout() {
+  const qs = new URLSearchParams(location.search);
+  const paid = qs.get('paid'), cancel = qs.get('cancel');
+  if (!paid && !cancel) return;
+  history.replaceState(null, '', location.pathname);
+  if (cancel) { try { await api('POST', `/api/payment/${cancel}/abandon`, { cid: CID }); toast('Payment cancelled. Nothing was charged.'); } catch {} tab = 'bill'; return refresh(); }
+  tab = 'bill'; toast('Confirming your payment');
+  for (let i = 0; i < 10; i++) {
+    try { const p = await api('GET', `/api/payment/${paid}?verify=1`); if (p.status !== 'awaiting') break; } catch {}
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  await refresh(); // shows the receipt as soon as the payment is confirmed
+}
+
+(async function init() {
+  try { MENU = await api('GET', '/api/menu'); } catch { document.body.innerHTML = '<p style="padding:30px">Cannot reach the restaurant server. Please ask a team member for help.</p>'; return; }
+  if (!(TABLE >= 1 && TABLE <= MENU.tables)) { document.body.innerHTML = '<p style="padding:30px">Unknown table. Please scan the QR code on your table.</p>'; return; }
+  document.title = `${MENU.restaurant} · Table ${TABLE}`;
+  if (myName) api('POST', '/api/me', { cid: CID, name: myName }).catch(() => {});
+  if (MENU.onlinePayments && ['card', 'applepay', 'googlepay'].includes(pay.method)) pay.method = 'online';
+  await refresh(); live();
+  setInterval(refresh, 20000); // fallback if the live connection drops
+  handleReturnFromCheckout();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kitchen</title>
+<link rel="stylesheet" href="/common.css">
+<style>
+  /* Kitchen screens are read from a distance, so this one stays dark with high contrast. */
+  :root { --bg: #1b221e; --surface: #252d28; --card: #252d28; --ink: #f2eee3; --mute: #9aa398; --line: #35403a; --line2: #4a564f; --brand: #4c9a78; --brand-dark: #3e8465; }
+  header { display: flex; gap: 14px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 5; flex-wrap: wrap; }
+  header h1 { font-size: 22px; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tabs button { border: 0; background: none; color: var(--mute); padding: 8px 12px; border-radius: 6px; font-size: 15px; }
+  .tabs button.on { background: var(--ink); color: var(--bg); font-weight: 600; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; padding: 16px; align-items: start; }
+  .tk { border-radius: 8px; overflow: hidden; background: var(--surface); border: 1px solid var(--line2); }
+  .tk .hd { display: flex; align-items: center; padding: 10px 12px; gap: 8px; background: #2f7d4f; color: #fff; }
+  .tk.amber .hd { background: #a06a14; } .tk.red .hd { background: #a93a30; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { filter: brightness(1.3); } }
+  .tk .hd b { font: 600 24px var(--serif); } .tk .timer { margin-left: auto; font: 700 20px ui-monospace, Consolas, monospace; }
+  .ln { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-top: 1px solid var(--line); cursor: pointer; font-size: 16px; }
+  .ln .ck { width: 20px; height: 20px; border: 2px solid var(--line2); border-radius: 4px; flex: none; margin-top: 2px; display: grid; place-items: center; color: transparent; }
+  .ln.done { opacity: .45; } .ln.done .ck { background: var(--brand); border-color: var(--brand); color: #fff; } .ln.done .nm { text-decoration: line-through; }
+  .ln .q { font-weight: 700; min-width: 28px; }
+  .ln .st { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--line); margin-left: 6px; color: var(--mute); }
+  .note { color: #e8b75a; font-size: 14px; margin-top: 2px; }
+  .bump { margin: 10px 12px 12px; width: calc(100% - 24px); }
+  .empty { text-align: center; color: var(--mute); padding: 90px 0; grid-column: 1 / -1; font: 22px var(--serif); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kitchen</h1>
+  <div class="tabs" id="stations"></div>
+  <div class="sp"></div><span class="mute" id="count"></span><button class="btn ghost sm" id="snd"></button>
+</header>
+<div id="grid"></div>
+<div id="toast"></div>
+<script src="/icons.js"></script>
+<script src="/staff.js"></script>
+<script>
+let D = { tickets: [], stations: [] }, station = '', skew = 0, soundOn = true, seen = new Set(), loaded = false;
+const savedStation = (() => { try { return localStorage.getItem('kitchenStation') || ''; } catch { return ''; } })();
+station = savedStation;
+const setSound = () => { $('#snd').innerHTML = soundOn ? `${icon('volume')} Sound on` : `${icon('mute')} Sound off`; };
+
+async function load() {
+  try {
+    const d = await api('GET', '/api/kitchen'); skew = Date.now() - d.serverTime; D = d;
+    const ids = new Set(d.tickets.map(t => t.id));
+    if (loaded && d.tickets.some(t => !seen.has(t.id) && (!station || t.lines.some(l => l.station === station)))) { if (soundOn) beep(660, 140, 2); }
+    seen = ids; loaded = true; draw();
+  } catch (e) { /* PIN prompt handles auth */ }
+}
+function visibleLines(t) { return t.lines.filter(l => !station || l.station === station); }
+function draw() {
+  $('#stations').innerHTML = ['', ...D.stations].map(s => `<button class="${station === s ? 'on' : ''}" data-s="${esc(s)}">${s || 'All stations'}</button>`).join('');
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { station = b.dataset.s; try { localStorage.setItem('kitchenStation', station); } catch {} draw(); });
+  const tickets = D.tickets.filter(t => visibleLines(t).length);
+  $('#count').textContent = `${tickets.length} open ticket${tickets.length === 1 ? '' : 's'}`;
+  $('#grid').innerHTML = tickets.length ? tickets.map(ticketHtml).join('') : `<div class="empty">All clear<div class="small" style="font-family:system-ui;margin-top:6px">New orders appear here the moment a waiter sends them.</div></div>`;
+  document.querySelectorAll('[data-line]').forEach(e => e.onclick = async () => {
+    const [id, idx, done] = e.dataset.line.split('|');
+    try { await api('POST', '/api/kitchen/ready', { orderId: id, idx: Number(idx), ready: done !== '1' }); load(); } catch (er) { toast(er.message); }
+  });
+  document.querySelectorAll('[data-bump]').forEach(e => e.onclick = async () => {
+    const t = D.tickets.find(x => x.id === e.dataset.bump);
+    try { await api('POST', '/api/kitchen/ready', { orderId: t.id, idxs: visibleLines(t).map(l => l.idx) }); load(); } catch (er) { toast(er.message); }
+  });
+  tick();
+}
+function ticketHtml(t) {
+  const lines = visibleLines(t);
+  return `<div class="tk" data-sent="${t.sentAt}">
+    <div class="hd"><b>Table ${t.table}</b><span class="small">#${t.no}</span><span class="timer"></span></div>
+    ${lines.map(l => `<div class="ln ${l.status === 'ready' ? 'done' : ''}" data-line="${t.id}|${l.idx}|${l.status === 'ready' ? 1 : 0}"><span class="ck">${icon('check')}</span><span class="q">${l.qty}×</span><div><span class="nm">${esc(l.name.replace('↳ ', ''))}${l.size ? ` <span class="mute">(${esc(l.size)})</span>` : ''}</span>${!station ? `<span class="st">${esc(l.station)}</span>` : ''}${l.notes ? `<div class="note">${esc(l.notes)}</div>` : ''}</div></div>`).join('')}
+    <button class="btn ok bump" data-bump="${t.id}">${station ? station + ': ' : ''}All done</button></div>`;
+}
+function tick() {
+  document.querySelectorAll('.tk').forEach(el => {
+    const age = Date.now() - skew - Number(el.dataset.sent);
+    el.querySelector('.timer').textContent = fmtTimer(age);
+    el.classList.toggle('amber', mins(age) >= 8 && mins(age) < 15);
+    el.classList.toggle('red', mins(age) >= 15);
+  });
+}
+$('#snd').onclick = () => { soundOn = !soundOn; setSound(); if (soundOn) beep(); };
+
+function start() { load(); }
+setSound();
+if (!PIN) askPin(); else start();
+connectLive(() => { if (PIN) load(); });
+setInterval(tick, 1000);
+setInterval(() => { if (PIN) load(); }, 30000);
+</script>
+</body>
+</html>

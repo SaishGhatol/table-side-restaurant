@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant system</title>
+<link rel="stylesheet" href="/common.css">
+<style>
+  body { padding: 28px 18px; max-width: 520px; margin: auto; }
+  a.item { display: flex; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+  a.item .i { width: 26px; height: 26px; color: var(--brand); }
+  a.item b { font-size: 16px; }
+</style>
+</head>
+<body>
+<h1>Restaurant system</h1>
+<p class="mute">Open the screen you need.</p>
+<a class="item" href="/t/5"><span id="i1"></span><div class="sp"><b>Guest view</b><div class="small mute">What a guest sees after scanning the table QR (table 5)</div></div></a>
+<a class="item" href="/floor"><span id="i2"></span><div class="sp"><b>Floor</b><div class="small mute">Staff: tables, help requests, send to kitchen, payments</div></div></a>
+<a class="item" href="/kitchen"><span id="i3"></span><div class="sp"><b>Kitchen</b><div class="small mute">Staff: live tickets, timers, stations</div></div></a>
+<a class="item" href="/qr"><span id="i4"></span><div class="sp"><b>Table QR codes</b><div class="small mute">Print one for each table</div></div></a>
+<script src="/icons.js"></script>
+<script>
+['phone', 'map', 'kitchen', 'grid'].forEach((n, i) => document.getElementById('i' + (i + 1)).innerHTML = icon(n));
+</script>
+</body>
+</html>

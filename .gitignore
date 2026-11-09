@@ -1,0 +1,5 @@
+.env
+data/state.json
+data/layout.json
+data/receipts/
+node_modules/

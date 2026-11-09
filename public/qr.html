@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Table QR codes</title>
+<link rel="stylesheet" href="/common.css">
+<style>
+  body { padding: 20px; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+  .qr { background: #fff; color: #111; border: 1px solid #cfc7b3; border-radius: 8px; padding: 16px; text-align: center; break-inside: avoid; }
+  .qr h2 { margin: 0 0 8px; font-size: 22px; font-family: var(--serif); } .qr div.c { display: inline-block; } .qr small { display: block; margin-top: 8px; color: #666; word-break: break-all; font-size: 11px; }
+  @media print { .no-print { display: none; } body { background: #fff; padding: 0; } }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <h1>Table QR codes</h1>
+  <p class="mute">Phones must reach the server over the same Wi-Fi (or a public URL). Set the address the QR codes should point to:</p>
+  <div class="row"><input id="base" style="max-width:360px"><button class="btn" id="go">Update</button><button class="btn ghost" onclick="print()">Print</button></div>
+  <div class="small mute" id="hint" style="margin-top:6px"></div>
+</div>
+<div id="grid"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+async function init() {
+  const info = await (await fetch('/api/info')).json();
+  const base = new URLSearchParams(location.search).get('base') || info.lan[0] || location.origin;
+  $('#base').value = base;
+  $('#hint').textContent = info.lan.length ? `Detected on your network: ${info.lan.join(', ')}` : 'No network address detected — using this page’s address.';
+  draw(base.replace(/\/$/, ''), info.tables);
+  $('#go').onclick = () => draw($('#base').value.replace(/\/$/, ''), info.tables);
+}
+function draw(base, n) {
+  $('#grid').innerHTML = Array.from({ length: n }, (_, i) => `<div class="qr"><h2>Table ${i + 1}</h2><div class="c" id="q${i + 1}"></div><small>${esc(base)}/t/${i + 1}</small><div style="margin-top:4px;font-size:13px">Scan to order · pay · play</div></div>`).join('');
+  if (typeof QRCode === 'undefined') { $('#hint').textContent += ' — QR library failed to load (needs internet once).'; return; }
+  for (let i = 1; i <= n; i++) new QRCode(document.getElementById('q' + i), { text: `${base}/t/${i}`, width: 168, height: 168 });
+}
+init();
+</script>
+</body>
+</html>

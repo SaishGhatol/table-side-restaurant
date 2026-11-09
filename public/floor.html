@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor</title>
+<link rel="stylesheet" href="/common.css">
+<style>
+  header { display: flex; gap: 14px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  header h1 { font-size: 22px; }
+  .stat { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+  .seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: var(--surface); padding: 6px 12px; font-size: 13.5px; }
+  .seg button + button { border-left: 1px solid var(--line2); }
+  .seg button.on { background: var(--brand); color: #fff; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 16px 0; font-size: 12.5px; color: var(--mute); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+
+  /* status colours, used by both views */
+  .s-free { --c: #8b8f85; } .s-request { --c: var(--accent); } .s-seated, .s-dining { --c: #6a5a94; } .s-new { --c: var(--info); } .s-cooking { --c: var(--warn); } .s-ready { --c: var(--ok); }
+
+  /* ---------- grid view ---------- */
+  #floor { padding: 16px; }
+  #floor.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .tb { --c: #8b8f85; background: var(--surface); border: 1px solid var(--line2); border-left: 5px solid var(--c); border-radius: 8px; padding: 12px; cursor: pointer; min-height: 120px; display: flex; flex-direction: column; gap: 6px; }
+  .tb .n { font: 600 26px var(--serif); }
+  .tb.free { border-left-style: dashed; background: transparent; }
+  .tb.help { border-color: var(--bad); border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--surface)); }
+  .tb .helpline { display: flex; gap: 6px; align-items: center; background: var(--bad); color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600; }
+  .tb .act { margin-top: auto; }
+
+  /* ---------- plan view ---------- */
+  #planwrap { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line2); border-radius: 10px; background: var(--surface); }
+  #stage { position: relative; transform-origin: 0 0;
+    background-color: #f1ebde;
+    background-image: repeating-linear-gradient(90deg, transparent 0 59px, #e6dfcf 59px 60px), repeating-linear-gradient(0deg, transparent 0 59px, #e6dfcf 59px 60px); }
+  .zone { position: absolute; border: 1.5px dashed #c4baa2; border-radius: 10px; }
+  .zone.patio { background: rgba(47, 125, 79, .06); border-color: #9bbfa8; }
+  .zone span { position: absolute; left: 14px; top: 8px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--mute); font-weight: 700; }
+  .fx { position: absolute; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 14px; border-radius: 6px; color: var(--mute); }
+  .fx .i { width: 18px; height: 18px; }
+  .fx.kitchen { background: #e4ded0; border: 1.5px solid #c4baa2; color: var(--ink); }
+  .fx.bar { background: #e7d8bd; border: 1.5px solid #c3a972; color: var(--ink); }
+  .fx.wc { background: #ebe6da; border: 1.5px solid #cfc6b0; }
+  .fx.door { border-bottom: 5px solid #9a9a8c; border-radius: 0; font-size: 12.5px; letter-spacing: 1px; text-transform: uppercase; align-items: flex-end; padding-bottom: 6px; }
+  .stool { position: absolute; bottom: -9px; width: 14px; height: 14px; border-radius: 50%; background: #efe6d2; border: 2px solid #b79c64; }
+
+  .pt { position: absolute; --c: #8b8f85; touch-action: none; }
+  .pt .body { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; cursor: pointer;
+    background: color-mix(in srgb, var(--c) 12%, #fffdf8); border: 2.5px solid var(--c); text-align: center; }
+  .pt.round .body { border-radius: 50%; } .pt.square .body { border-radius: 10px; } .pt.rect .body { border-radius: 12px; }
+  .pt.s-free .body { border-style: dashed; background: rgba(255, 253, 248, .6); }
+  .pt .num { font: 600 24px var(--serif); }
+  .pt .sub { font-size: 11.5px; color: var(--mute); margin-top: 2px; max-width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chair { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 5px; pointer-events: none; background: color-mix(in srgb, var(--c) 45%, #fffdf8); border: 2px solid var(--c); }
+  .pt.s-free .chair { background: #efe9da; border: 2px dashed #b9b19b; }
+  .pt.help .body { border-color: var(--bad); animation: ring 1.2s infinite; }
+  @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(169, 58, 48, .5); } 100% { box-shadow: 0 0 0 14px rgba(169, 58, 48, 0); } }
+  .pt.req .body { animation: ringacc 1.2s infinite; }
+  @keyframes ringacc { 0% { box-shadow: 0 0 0 0 rgba(176, 120, 42, .55); } 100% { box-shadow: 0 0 0 14px rgba(176, 120, 42, 0); } }
+  .bell.req { background: var(--accent); }
+  .tb.req { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+  .tb .reqline { display: flex; gap: 6px; align-items: center; background: var(--accent); color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600; }
+  .reqrow { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); } .reqrow:first-of-type { border-top: 0; }
+  .bell { position: absolute; right: -12px; top: -12px; background: var(--bad); color: #fff; border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; z-index: 3; pointer-events: none; }
+  .pill { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 3; box-shadow: 0 1px 4px rgba(0, 0, 0, .18); }
+  .pt.sel .body { outline: 3px solid var(--brand); outline-offset: 4px; }
+  #stage.edit .pt .body { cursor: grab; border-style: dashed; }
+  #stage.edit .pill, #stage.edit .bell { display: none; }
+  #editbar { margin: 10px 16px 0; }
+
+  .ord { border: 1px solid var(--line2); border-radius: 8px; padding: 10px; margin-top: 10px; background: var(--surface); }
+  .ord .l { font-size: 14px; padding: 2px 0; } .ord .l.sub { color: var(--mute); padding-left: 14px; font-size: 13px; }
+  .rv { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .rstars { color: var(--accent); white-space: nowrap; } .rstars .i { width: 14px; height: 14px; fill: currentColor; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Floor</h1>
+  <div class="stat" id="stats"></div>
+  <div class="sp"></div>
+  <div class="stat mute" id="today"></div>
+  <div class="seg" id="viewseg"><button data-v="plan">Floor plan</button><button data-v="grid">Grid</button></div>
+  <button class="btn ghost sm" id="editbtn"></button>
+  <button class="btn ghost sm" id="snd"></button>
+</header>
+<div class="legend">
+  <span><i style="background:var(--accent)"></i>Wants to join</span><span><i style="background:var(--bad)"></i>Needs help</span><span><i style="background:var(--info)"></i>New order</span><span><i style="background:var(--warn)"></i>In kitchen</span>
+  <span><i style="background:var(--ok)"></i>Ready to serve</span><span><i style="background:#6a5a94"></i>Seated or dining</span>
+  <span><i style="border:1.5px dashed #8b8f85"></i>Closed: guests who scan the QR send you a request to approve</span>
+</div>
+<div id="editbar" hidden></div>
+<div id="floor"></div>
+<div id="modal"></div>
+<div id="toast"></div>
+<script src="/icons.js"></script>
+<script src="/staff.js"></script>
+<script>
+let F = null, L = null, cur = null, soundOn = true, CUR = '₹', LOCALE = 'en-IN';
+let view = 'plan', editing = false, selected = null, dragging = false;
+try { view = localStorage.getItem('floorView') || (window.innerWidth < 700 ? 'grid' : 'plan'); } catch {}
+const LABEL = { free: 'Closed', request: 'Wants to join', seated: 'Seated', new: 'New order', cooking: 'In kitchen', ready: 'Ready to serve', dining: 'Dining' };
+const money = n => `${CUR}${/^[A-Za-z]+$/.test(CUR) ? ' ' : ''}${(Math.round(n * 100) / 100).toLocaleString(LOCALE, { maximumFractionDigits: 2 })}`;
+const ago = at => { const m = mins(Date.now() - at); return m < 1 ? 'just now' : m + ' min ago'; };
+const devices = n => `${n} device${n === 1 ? '' : 's'} approved`;
+const askers = t => t.requests.map(r => r.name || 'Guest').join(', ');
+const stars = n => `<span class="rstars">${icon('star').repeat(n)}</span>`;
+const setButtons = () => {
+  $('#editbtn').innerHTML = editing ? `${icon('check')} Done editing` : `${icon('edit')} Edit layout`;
+  $('#snd').innerHTML = soundOn ? `${icon('volume')} Sound on` : `${icon('mute')} Sound off`;
+};
+
+async function load() {
+  try { F = await api('GET', '/api/floor'); if (!L) L = await api('GET', '/api/layout'); draw(); if (cur) drawDetail(); } catch {}
+}
+async function loadLayout() { try { L = await api('GET', '/api/layout'); if (F) draw(); } catch {} }
+
+function draw() {
+  const c = s => F.tables.filter(t => t.status === s).length;
+  const help = F.tables.filter(t => t.help).length;
+  const asking = F.tables.filter(t => t.requests.length).length;
+  $('#stats').innerHTML = [[asking, 'asking to join', 'warn'], [help, 'help', 'bad'], [c('new'), 'new', 'info'], [c('cooking'), 'cooking', 'warn'], [c('ready'), 'ready', 'ok']].map(([n, l, k]) => `<span class="badge ${n ? k : ''}">${n} ${l}</span>`).join(' ');
+  $('#today').textContent = `Today: ${money(F.today.revenue)} · tips ${money(F.today.tips)} · ${F.today.orders} orders`;
+  document.querySelectorAll('#viewseg button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
+  $('#editbtn').style.display = view === 'plan' ? '' : 'none';
+  setButtons();
+  if (dragging) return; // don't rebuild the plan under the user's finger
+  if (view === 'plan' && L) drawPlan(); else { editing = false; setButtons(); drawGrid(); }
+  bindActions();
+}
+
+// ---------- grid view ----------
+function drawGrid() {
+  $('#editbar').hidden = true;
+  $('#floor').className = 'grid';
+  $('#floor').innerHTML = F.tables.map(cardHtml).join('');
+  document.querySelectorAll('.tb').forEach(e => e.onclick = ev => { if (ev.target.closest('button')) return; cur = Number(e.dataset.t); drawDetail(); });
+}
+function actionFor(t) {
+  if (t.requests.length) return { kind: 'approve', label: t.requests.length > 1 ? `Approve ${t.requests.length} guests` : 'Approve', primary: true };
+  if (t.orders.some(o => o.status === 'pending')) return { kind: 'send', label: 'Send to kitchen', primary: true };
+  if (t.help) return { kind: 'clear', label: "I'm on it", primary: false };
+  return null;
+}
+function cardHtml(t) {
+  const a = actionFor(t);
+  const btn = a ? `<button class="btn block sm ${a.primary ? '' : 'ghost'}" data-${a.kind}="${t.id}">${a.label}</button>` : '';
+  return `<div class="tb s-${t.status} ${t.status === 'free' ? 'free' : ''} ${t.help ? 'help' : ''} ${t.requests.length ? 'req' : ''}" data-t="${t.id}">
+    <div class="row"><span class="n">${t.id}</span><div class="sp"></div><span class="badge">${LABEL[t.status]}</span></div>
+    ${t.help ? `<div class="helpline">${icon('bell')} ${esc(t.help.reason)} · ${ago(t.help.at)}</div>` : ''}
+    ${t.requests.length ? `<div class="reqline">${icon('key')} ${esc(askers(t))} · ${ago(Math.min(...t.requests.map(r => r.at)))}</div>` : ''}
+    ${t.open ? `<div class="small mute">${devices(t.devices)}</div>` : ''}
+    ${t.orders.length ? `<div class="small mute">${t.orders.length} order${t.orders.length > 1 ? 's' : ''} · ${money(t.bill.balance)} due</div>` : ''}
+    ${t.bill.pending.length ? `<div class="small" style="color:var(--warn)">${icon('cash')} Confirm ${t.bill.pending.map(p => p.method).join(', ')} payment</div>` : ''}
+    <div class="act">${btn}</div></div>`;
+}
+
+// ---------- floor plan view ----------
+function dims(t) {
+  const s = t.seats;
+  if (t.shape === 'round') { const d = Math.min(130, Math.max(72, 72 + (s - 2) * 8)); return { w: d, h: d }; }
+  if (t.shape === 'square') { const d = Math.min(112, 76 + Math.max(0, s - 2) * 6); return { w: d, h: d }; }
+  return { w: Math.min(270, 64 + s * 16), h: 78 };
+}
+// chair centres relative to the table's centre
+function chairSpots(t, w, h) {
+  const s = t.seats, out = [];
+  if (t.shape === 'round') {
+    const r = w / 2 + 14;
+    for (let i = 0; i < s; i++) { const a = -Math.PI / 2 + (2 * Math.PI * i) / s; out.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  } else {
+    const top = Math.ceil(s / 2), bot = s - top;
+    for (let k = 0; k < top; k++) out.push([-w / 2 + (w * (k + 0.5)) / top, -h / 2 - 14]);
+    for (let k = 0; k < bot; k++) out.push([-w / 2 + (w * (k + 0.5)) / bot, h / 2 + 14]);
+  }
+  return out;
+}
+function fitScale() {
+  const wrap = $('#planwrap'); if (!wrap || !L) return 1;
+  return Math.max(0.62, Math.min(1.4, wrap.clientWidth / L.W)); // below 62% text gets unreadable: scroll sideways instead
+}
+function drawPlan() {
+  const fl = $('#floor'); fl.className = '';
+  if (!$('#planwrap')) fl.innerHTML = '<div id="planwrap"><div id="stage"></div></div>';
+  const stage = $('#stage');
+  stage.className = editing ? 'edit' : '';
+  stage.style.width = L.W + 'px'; stage.style.height = L.H + 'px';
+  const byId = Object.fromEntries(F.tables.map(t => [t.id, t]));
+  let h = '';
+  for (const z of L.zones) h += `<div class="zone ${z.kind || ''}" style="left:${z.x}px;top:${z.y}px;width:${z.w}px;height:${z.h}px"><span>${esc(z.name)}</span></div>`;
+  for (const f of L.fixtures) {
+    const ic = { kitchen: 'kitchen', bar: 'glass', wc: 'toilet', door: 'door' }[f.type];
+    const stools = f.type === 'bar' ? Array.from({ length: Math.floor(f.w / 48) }, (_, i) => `<i class="stool" style="left:${24 + i * 48}px"></i>`).join('') : '';
+    h += `<div class="fx ${f.type}" style="left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px">${stools}${ic ? icon(ic) : ''} ${esc(f.label)}</div>`;
+  }
+  for (const [id, lt] of Object.entries(L.tables)) {
+    const t = byId[id]; if (!t) continue;
+    const { w, h: ht } = dims(lt);
+    const a = !editing && actionFor(t);
+    const chairs = chairSpots(lt, w, ht).map(([cx, cy]) => `<i class="chair" style="left:${w / 2 + cx}px;top:${ht / 2 + cy}px"></i>`).join('');
+    const sub = `<span class="sub" ${t.requests.length ? 'style="color:var(--accent);font-weight:700"' : ''}>${t.requests.length ? 'Wants to join' : t.help ? esc(t.help.reason) : LABEL[t.status]}</span>`;
+    const extra = t.open ? (t.orders.length ? `<span class="sub">${money(t.bill.balance)} due</span>` : `<span class="sub">${t.devices} in</span>`) : '';
+    const pay = !editing && t.bill.pending.length ? `<span class="sub" style="color:var(--warn)">confirm payment</span>` : '';
+    h += `<div class="pt ${lt.shape} s-${t.status} ${t.help ? 'help' : ''} ${t.requests.length ? 'req' : ''} ${selected == id && editing ? 'sel' : ''}" data-t="${id}" style="left:${lt.x - w / 2}px;top:${lt.y - ht / 2}px;width:${w}px;height:${ht}px">
+      ${chairs}<div class="body"><span class="num">${id}</span>${sub}${extra}${pay}</div>
+      ${(t.help || t.requests.length) && !editing ? `<span class="bell ${t.help ? '' : 'req'}">${icon(t.help ? 'bell' : 'key')}</span>` : ''}
+      ${a ? `<button class="btn sm pill ${a.primary ? '' : 'ghost'}" style="top:${ht + 26}px;${a.primary ? '' : 'background:var(--surface)'}" data-${a.kind}="${id}">${a.label}</button>` : ''}</div>`;
+  }
+  stage.innerHTML = h;
+  const s = fitScale();
+  stage.style.transform = `scale(${s})`;
+  $('#planwrap').style.height = L.H * s + 'px';
+  // the scaled stage still occupies its unscaled size for layout; shrink the scroll area to the scaled size
+  stage.style.marginRight = -(L.W * (1 - s)) + 'px';
+  stage.style.marginBottom = -(L.H * (1 - s)) + 'px';
+
+  document.querySelectorAll('.pt .body').forEach(b => {
+    const id = b.parentElement.dataset.t;
+    b.onclick = () => { if (editing) return; cur = Number(id); drawDetail(); };
+    b.onpointerdown = e => { if (editing) startDrag(e, id, b.parentElement, s); };
+  });
+  drawEditBar();
+}
+
+// ---------- layout editing ----------
+function drawEditBar() {
+  const bar = $('#editbar');
+  bar.hidden = !editing;
+  setButtons();
+  if (!editing) return;
+  const lt = selected && L.tables[selected];
+  bar.innerHTML = `<div class="panel"><div class="row" style="flex-wrap:wrap">
+    <b>Editing layout</b><span class="mute small sp">Drag a table to move it. Tap a table to change its shape or seats. Changes save automatically.</span>
+    <button class="btn ghost sm" id="resetlayout">Reset to default</button></div>
+    ${lt ? `<div class="row" style="margin-top:10px;flex-wrap:wrap"><b>Table ${selected}</b>
+      <div class="seg">${[['round', 'Round'], ['square', 'Square'], ['rect', 'Long']].map(([k, l]) => `<button data-shape="${k}" class="${lt.shape === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <div class="row"><button class="btn ghost sm" data-seats="-1" aria-label="Fewer seats">${icon('minus')}</button><b>${lt.seats} seats</b><button class="btn ghost sm" data-seats="1" aria-label="More seats">${icon('plus')}</button></div></div>` : '<div class="small mute" style="margin-top:8px">No table selected.</div>'}</div>`;
+  bar.querySelectorAll('[data-shape]').forEach(b => b.onclick = () => saveLayout({ [selected]: { shape: b.dataset.shape } }));
+  bar.querySelectorAll('[data-seats]').forEach(b => b.onclick = () => saveLayout({ [selected]: { seats: L.tables[selected].seats + Number(b.dataset.seats) } })); // read at click time so rapid taps accumulate
+  $('#resetlayout').onclick = async () => {
+    if (!confirm('Reset the floor plan to the default layout?')) return;
+    try { L = await api('POST', '/api/layout', { reset: true }); selected = null; draw(); } catch (e) { toast(e.message); }
+  };
+}
+async function saveLayout(patch) {
+  for (const [id, p] of Object.entries(patch)) Object.assign(L.tables[id], p); // optimistic
+  draw();
+  try { L = await api('POST', '/api/layout', { tables: patch }); draw(); } catch (e) { toast(e.message); loadLayout(); }
+}
+function startDrag(e, id, el, scale) {
+  e.preventDefault();
+  selected = id; dragging = true;
+  document.querySelectorAll('.pt.sel').forEach(x => x.classList.remove('sel')); el.classList.add('sel');
+  const lt = L.tables[id], { w, h } = dims(lt);
+  const sx = e.clientX, sy = e.clientY, ox = lt.x, oy = lt.y;
+  let moved = false, nx = ox, ny = oy;
+  const snap = v => Math.round(v / 10) * 10;
+  const move = ev => {
+    const dx = (ev.clientX - sx) / scale, dy = (ev.clientY - sy) / scale;
+    if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+    nx = Math.min(L.W - w / 2, Math.max(w / 2, snap(ox + dx))); ny = Math.min(L.H - h / 2, Math.max(h / 2, snap(oy + dy)));
+    el.style.left = nx - w / 2 + 'px'; el.style.top = ny - h / 2 + 'px';
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    dragging = false;
+    if (moved) saveLayout({ [id]: { x: nx, y: ny } }); else draw();
+  };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+
+// ---------- shared actions ----------
+function bindActions() {
+  document.querySelectorAll('[data-send]').forEach(b => b.onclick = e => { e.stopPropagation(); act(`/api/table/${b.dataset.send}/send-all`, 'Sent to kitchen'); });
+  document.querySelectorAll('#floor [data-clear]').forEach(b => b.onclick = e => { e.stopPropagation(); act(`/api/table/${b.dataset.clear}/help/clear`); });
+  document.querySelectorAll('#floor [data-approve]').forEach(b => b.onclick = e => { e.stopPropagation(); act(`/api/table/${b.dataset.approve}/approve`, 'Approved. The guests can order now.'); });
+}
+
+// Returns true on success so callers can chain UI changes.
+async function act(url, msg, body) {
+  try { await api('POST', url, body || {}); if (msg) toast(msg); await load(); return true; }
+  catch (e) { toast(e.message); return false; }
+}
+
+function accessHtml(t) {
+  const reqs = t.requests.length ? `<div class="panel" style="margin-top:10px;border-color:var(--accent)"><div class="row"><b class="sp">Asking to join</b>${t.requests.length > 1 ? `<button class="btn sm" data-approve="${t.id}">Approve all</button>` : ''}</div>
+    ${t.requests.map(r => `<div class="reqrow"><span class="sp"><b>${esc(r.name || 'Guest')}</b> <span class="mute small">${ago(r.at)}</span></span><button class="btn sm" data-approve="${t.id}" data-rid="${r.rid}">Approve</button><button class="btn ghost sm" data-decline="${t.id}" data-rid="${r.rid}">Decline</button></div>`).join('')}</div>` : '';
+  if (!t.open) {
+    return reqs + `<div class="panel" style="margin-top:10px"><b>Table is closed.</b> <span class="mute small">When guests scan the table QR you get a request here to approve. Until then they can only browse the menu.</span></div>`;
+  }
+  return reqs + `<div class="panel" style="margin-top:10px"><div class="row"><b class="sp">Guests seated</b><span class="mute small">${devices(t.devices)}</span></div>
+    <div class="row" style="margin-top:10px"><button class="btn ghost sm" data-reset="${t.id}">Remove all devices</button><button class="btn bad sm" data-closet="${t.id}">Close table</button></div></div>`;
+}
+
+function drawDetail() {
+  const t = F.tables.find(x => x.id === cur); if (!t) return;
+  $('#modal').innerHTML = `<div class="overlay" id="ov"><div class="sheet">
+    <div class="row"><h2 class="sp">Table ${t.id} <span class="badge" style="vertical-align:middle">${LABEL[t.status]}</span></h2><button class="btn ghost sm" id="x" aria-label="Close">${icon('close')}</button></div>
+    ${accessHtml(t)}
+    ${t.help ? `<div class="panel row" style="margin-top:10px;border-color:var(--bad)">${icon('bell')}<b class="sp">${esc(t.help.reason)}</b><button class="btn sm" data-clear="${t.id}">Done</button></div>` : ''}
+    ${t.orders.map(o => `<div class="ord"><div class="row"><b>Order ${o.no}</b><span class="mute small">${o.by ? esc(o.by) + ' · ' : ''}${ago(o.createdAt)}</span><div class="sp"></div><span class="badge ${({ pending: 'info', sent: 'warn', ready: 'ok' })[o.status] || ''}">${o.status === 'pending' ? 'awaiting send' : o.status}</span></div>
+      ${o.lines.map(l => `<div class="l ${l.name.startsWith('↳') ? 'sub' : ''}">${l.qty} × ${esc(l.name)}${l.size ? ` (${esc(l.size)})` : ''}${l.station && o.status === 'sent' ? ` <span class="badge ${l.status === 'ready' ? 'ok' : ''}">${esc(l.station)}${l.status === 'ready' ? ' done' : ''}</span>` : ''}${l.notes ? `<div class="small" style="color:var(--warn)">“${esc(l.notes)}”</div>` : ''}</div>`).join('')}
+      <div class="row" style="margin-top:8px">
+        ${o.status === 'pending' ? `<button class="btn sm" data-sendo="${o.id}">Send to kitchen</button>` : ''}
+        ${o.status === 'ready' ? `<button class="btn ok sm" data-served="${o.id}">Mark served</button>` : ''}
+        ${o.status !== 'served' ? `<button class="btn ghost sm" data-cancel="${o.id}">Cancel</button>` : ''}</div></div>`).join('') || '<p class="mute">No active orders.</p>'}
+    ${t.orders.length ? `<div class="panel" style="margin-top:12px"><div class="row"><span>Bill total</span><div class="sp"></div><b>${money(t.bill.total)}</b></div><div class="row"><span class="mute">Paid</span><div class="sp"></div><span>${money(t.bill.paid)}</span></div><div class="row"><span>Balance</span><div class="sp"></div><b>${money(t.bill.balance)}</b></div></div>` : ''}
+    ${t.bill.pending.map(p => `<div class="panel" style="margin-top:10px;border-color:var(--warn)"><b>${icon(p.method === 'cash' ? 'cash' : 'bank')} ${p.method === 'cash' ? 'Cash' : 'Bank transfer'}: ${money(p.amount + p.tip)}</b> <span class="mute small">(incl. ${money(p.tip)} tip)</span><div class="row" style="margin-top:8px"><button class="btn ok sm" data-pay="${p.id}|confirm">Received</button><button class="btn bad sm" data-pay="${p.id}|reject">Not received</button></div></div>`).join('')}
+    ${F.reviews.length ? `<h3 style="margin-top:18px;font-size:16px">Latest reviews</h3>${F.reviews.map(r => `<div class="rv">${stars(r.rating)} <b>${esc(r.name || 'Table ' + r.table)}</b> ${esc(r.comment)}</div>`).join('')}` : ''}
+  </div></div>`;
+
+  $('#x').onclick = closeDetail; $('#ov').onclick = e => { if (e.target.id === 'ov') closeDetail(); };
+  document.querySelectorAll('#modal [data-approve]').forEach(b => b.onclick = () => act(`/api/table/${b.dataset.approve}/approve`, 'Approved', b.dataset.rid ? { rid: b.dataset.rid } : {}));
+  document.querySelectorAll('#modal [data-decline]').forEach(b => b.onclick = () => act(`/api/table/${b.dataset.decline}/decline`, 'Declined', { rid: b.dataset.rid }));
+  document.querySelectorAll('[data-reset]').forEach(b => b.onclick = () => { if (confirm('Remove every approved device? Guests will have to ask to join again.')) act(`/api/table/${b.dataset.reset}/reset-devices`, 'Devices removed'); });
+  document.querySelectorAll('[data-closet]').forEach(b => b.onclick = async () => {
+    const url = `/api/table/${b.dataset.closet}/close`;
+    try { await api('POST', url, {}); toast('Table closed'); closeDetail(); load(); }
+    catch (e) {
+      if (e.reason !== 'unpaid') return toast(e.message);
+      if (confirm('This table still has an unpaid bill. Close it anyway? Orders not yet served will be cancelled.') && await act(url, 'Table closed', { force: true })) closeDetail();
+    }
+  });
+  document.querySelectorAll('#modal [data-clear]').forEach(b => b.onclick = () => act(`/api/table/${b.dataset.clear}/help/clear`));
+  document.querySelectorAll('[data-sendo]').forEach(b => b.onclick = () => act(`/api/order/${b.dataset.sendo}/send`, 'Sent to kitchen'));
+  document.querySelectorAll('[data-served]').forEach(b => b.onclick = () => act(`/api/order/${b.dataset.served}/served`, 'Marked served'));
+  document.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { if (confirm('Cancel this order?')) act(`/api/order/${b.dataset.cancel}/cancel`, 'Order cancelled'); });
+  document.querySelectorAll('[data-pay]').forEach(b => b.onclick = () => { const [id, a] = b.dataset.pay.split('|'); act(`/api/payment/${id}/${a}`, a === 'confirm' ? 'Payment confirmed' : 'Payment rejected'); });
+}
+function closeDetail() { cur = null; $('#modal').innerHTML = ''; }
+
+$('#snd').onclick = () => { soundOn = !soundOn; setButtons(); if (soundOn) beep(); };
+$('#editbtn').onclick = () => { editing = !editing; selected = null; if (F) draw(); else setButtons(); };
+document.querySelectorAll('#viewseg button').forEach(b => b.onclick = () => {
+  view = b.dataset.v; try { localStorage.setItem('floorView', view); } catch {}
+  if (view !== 'plan') editing = false;
+  $('#floor').innerHTML = ''; if (F) draw();
+});
+window.addEventListener('resize', () => { if (view === 'plan' && F && L && !dragging) draw(); });
+
+function start() { load(); }
+setButtons();
+fetch('/api/menu').then(r => r.json()).then(m => { CUR = m.currency; LOCALE = m.locale || 'en-IN'; if (F) draw(); });
+if (!PIN) askPin(); else start();
+connectLive(ev => {
+  if (!PIN) return;
+  if (ev.t === 'layout') { if (!dragging) loadLayout(); return; }
+  if (ev.t === 'join' && soundOn) beep(740, 150, 2);
+  else if (ev.t === 'help' && !ev.cleared && soundOn) beep(988, 140, 3);
+  else if (ev.t === 'order' && ev.new && soundOn) beep(660, 180, 1);
+  else if (ev.t === 'order' && ev.ready && soundOn) beep(523, 160, 2);
+  load();
+});
+setInterval(() => { if (PIN) load(); }, 30000);
+</script>
+</body>
+</html>
